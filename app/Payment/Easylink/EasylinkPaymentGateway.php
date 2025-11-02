@@ -11,6 +11,7 @@ use App\Payment\Easylink\Enums\TransferState;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+
 /**
  * Service class for interacting with the EasyLink API.
  *
@@ -22,8 +23,8 @@ class EasylinkPaymentGateway
     /**
      * Handles the disbursement response from the EasyLink API.
      *
-     * @param Request $request The request object.
-     * @return bool The response object.
+     * @param  Request  $request  The request object.
+     * @return bool Returns true if the transaction was handled successfully, false otherwise.
      *
      * @throws \Throwable
      */
@@ -38,39 +39,34 @@ class EasylinkPaymentGateway
                 'trx_data' => $data,
             ]);
 
-            $response = match ((int) $request->state) {
-                TransferState::COMPLETE->value => tap(response()->json(['status' => 'success']), function () use ($request): void {
+            $handled = match ((int) $request->state) {
+                TransferState::COMPLETE->value => tap(true, function () use ($request): void {
                     app(TransactionService::class)->completeTransaction($request->reference_id);
+
                 }),
 
-                TransferState::FAILED->value => tap(
-                    response()->json(['status' => 'failed'], Response::HTTP_BAD_REQUEST),
-                    function () use ($request): void {
-                        app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Disbursement Failed', 'Withdrawal failed');
-                    },
-                ),
+                TransferState::FAILED->value => tap(true, function () use ($request): void {
+                    app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Disbursement Failed', 'Withdrawal failed');
+                }),
 
-                TransferState::REFUND_SUCCESS->value => tap(
-                    response()->json(['status' => 'cancelled'], Response::HTTP_BAD_REQUEST),
-                    function () use ($request): void {
-                        app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Disbursement Refunded', 'Withdrawal refunded');
-                    },
-                ),
+                TransferState::REFUND_SUCCESS->value => tap(true, function () use ($request): void {
+                    app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Disbursement Refunded', 'Withdrawal refunded');
+                }),
 
-                default => null,
+                default => false,
             };
-            if ($response) {
-                return true;
-            }
+
+            return $handled;
         }
+
         return false;
     }
 
     /**
      * Handles the topup response from the EasyLink API.
      *
-     * @param Request $request The request object.
-     * @return bool The response object.
+     * @param  Request  $request  The request object.
+     * @return bool Returns true if the transaction was handled successfully, false otherwise.
      *
      * @throws \Throwable
      */
@@ -83,34 +79,27 @@ class EasylinkPaymentGateway
 
             $transaction->update(['trx_data' => $data]);
 
-            $response = match ((int) $request->state) {
-                TransferState::COMPLETE->value => tap(response()->json(['status' => 'success']), function () use ($transaction, $request): void {
+            $handled = match ((int) $request->state) {
+                TransferState::COMPLETE->value => tap(true, function () use ($transaction, $request): void {
                     if ($transaction->status !== TrxStatus::COMPLETED) {
                         app(TransactionService::class)->completeTransaction($request->reference_id);
                     }
                 }),
 
-                TransferState::FAILED->value => tap(
-                    response()->json(['status' => 'failed'], Response::HTTP_BAD_REQUEST),
-                    function () use ($request): void {
-                        app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Topup Failed', 'Topup failed');
-                    },
-                ),
+                TransferState::FAILED->value => tap(true, function () use ($request): void {
+                    app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Topup Failed', 'Topup failed');
+                }),
 
-                TransferState::REFUND_SUCCESS->value => tap(
-                    response()->json(['status' => 'cancelled'], Response::HTTP_BAD_REQUEST),
-                    function () use ($request): void {
-                        app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Topup Refunded', 'Topup refunded');
-                    },
-                ),
+                TransferState::REFUND_SUCCESS->value => tap(true, function () use ($request): void {
+                    app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Topup Refunded', 'Topup refunded');
+                }),
 
-                default => null,
+                default => false,
             };
-            if ($response) {
-                return true;
-            }
+
+            return $handled;
         }
+
         return false;
     }
-
 }

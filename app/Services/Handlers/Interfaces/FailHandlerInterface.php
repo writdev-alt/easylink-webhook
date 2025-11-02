@@ -6,5 +6,5 @@ use App\Models\Transaction;
 
 interface FailHandlerInterface
 {
-    public function handleFail(Transaction $transaction): void;
+    public function handleFail(Transaction $transaction): bool;
 }

@@ -68,5 +68,3 @@ class TransferStateTest extends TestCase
         ];
     }
 }
-
-

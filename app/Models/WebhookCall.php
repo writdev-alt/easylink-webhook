@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @method static static create(array $attributes = [])
+ *
  * @property int $id
  * @property string|null $uuid
  * @property string $name
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $exception
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebhookCall newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebhookCall newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebhookCall query()
@@ -33,6 +35,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebhookCall whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebhookCall whereUrl($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebhookCall whereUuid($value)
+ *
  * @mixin \Eloquent
  */
 class WebhookCall extends Model

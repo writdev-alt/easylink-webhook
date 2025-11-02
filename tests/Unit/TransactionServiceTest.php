@@ -117,5 +117,3 @@ class TransactionServiceTest extends TestCase
         $this->assertNull($updated->description);
     }
 }
-
-

@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MerchantFeature> $features
  * @property-read int|null $features_count
  * @property-read \App\Models\User $user
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Merchant newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Merchant newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Merchant query()
@@ -64,6 +65,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Merchant whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Merchant whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Merchant whereUserId($value)
+ *
  * @mixin \Eloquent
  */
 class Merchant extends Model
@@ -101,7 +103,6 @@ class Merchant extends Model
             'status' => MerchantStatus::class,
         ];
     }
-
 
     /**
      * Get the user that owns the merchant.
@@ -221,5 +222,4 @@ class Merchant extends Model
             'status' => TrxStatus::COMPLETED->value,
         ])->sum('net_amount');
     }
-
 }

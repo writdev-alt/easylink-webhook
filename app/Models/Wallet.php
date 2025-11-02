@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Transaction> $transactions
  * @property-read int|null $transactions_count
  * @property-read \App\Models\User $user
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet query()
@@ -50,6 +51,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUuid($value)
+ *
  * @mixin \Eloquent
  */
 class Wallet extends Model
@@ -81,7 +83,6 @@ class Wallet extends Model
         'uuid' => 'string',
         'status' => 'boolean',
     ];
-
 
     /**
      * Scope to filter inactive wallets.
@@ -170,7 +171,6 @@ class Wallet extends Model
     {
         return $this->hasCurrencyRole(CurrencyRole::WITHDRAW);
     }
-
 
     /**
      * Get the balance attribute based on app mode.

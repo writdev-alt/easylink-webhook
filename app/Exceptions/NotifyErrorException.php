@@ -86,5 +86,3 @@ class NotifyErrorException extends RuntimeException
         return $this->context;
     }
 }
-
-

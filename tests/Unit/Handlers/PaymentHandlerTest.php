@@ -65,7 +65,7 @@ class PaymentHandlerTest extends TestCase
             'trx_type' => TrxType::PAYMENT,
         ]);
 
-        $handler = new PaymentHandler();
+        $handler = new PaymentHandler;
         $handler->handleSuccess($transaction);
 
         $this->assertEquals(500.0, $wallet->fresh()->getActualBalance());
@@ -88,7 +88,7 @@ class PaymentHandlerTest extends TestCase
             'trx_type' => TrxType::RECEIVE_PAYMENT,
         ]);
 
-        $handler = new PaymentHandler();
+        $handler = new PaymentHandler;
         $handler->handleSuccess($transaction);
 
         $fresh = $wallet->fresh();
@@ -113,11 +113,9 @@ class PaymentHandlerTest extends TestCase
             'trx_type' => TrxType::DEPOSIT,
         ]);
 
-        $handler = new PaymentHandler();
+        $handler = new PaymentHandler;
         $handler->handleSuccess($transaction);
 
         $this->assertEquals(300.0, $wallet->fresh()->getActualBalance());
     }
 }
-
-

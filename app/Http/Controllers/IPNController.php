@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Events\WebhookReceived;
 use App\Payment\PaymentGatewayFactory;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -21,7 +20,7 @@ class IPNController
      * @param  Request  $request  The request containing the IPN data
      * @param  string  $gateway  The gateway to handle the IPN
      * @param  null  $action  The action to handle the IPN
-     * @return JsonResponse|RedirectResponse
+     * @return JsonResponse
      *
      * @throws \Throwable
      */
@@ -30,7 +29,7 @@ class IPNController
         try {
             // Ensure we only acknowledge supported gateways
             try {
-               $paymentGateway = $this->paymentFactory->getGateway($gateway);
+                $paymentGateway = $this->paymentFactory->getGateway($gateway);
             } catch (\Throwable $unsupported) {
                 Log::warning('IPN received for unsupported gateway', [
                     'gateway' => $gateway,
@@ -50,7 +49,7 @@ class IPNController
                 'query' => $request->query->all(),
             ]);
 
-            $payload = array_merge($request->all(), [
+            $payload = array_merge($request->toArray(), [
                 '_action' => $action,
             ]);
 
@@ -80,11 +79,10 @@ class IPNController
                 'action' => $action,
             ]);
 
-
             return response()->json([
-                'status' => $result,
+                'status' => $result ? 'success' : 'failed',
                 'message' => 'Webhook received',
-            ], 200);
+            ], $result ? 200 : 400);
         } catch (\Throwable $e) {
             Log::error('IPN handling failed', [
                 'gateway' => $gateway,

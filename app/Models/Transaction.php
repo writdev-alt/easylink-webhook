@@ -58,6 +58,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property-read Model|\Eloquent|null $method
  * @property-read \App\Models\User $user
  * @property-read \App\Models\Wallet|null $wallet
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Transaction newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Transaction newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Transaction query()
@@ -100,6 +101,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Transaction whereWalletReference($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Transaction whereWebhookCall($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Transaction whereWebhookCallSent($value)
+ *
  * @mixin \Eloquent
  */
 class Transaction extends Model
@@ -247,7 +249,6 @@ class Transaction extends Model
         return $this->belongsTo(Customer::class);
     }
 
-
     /**
      * Transaction belongs to a merchant.
      */
@@ -282,8 +283,6 @@ class Transaction extends Model
 
     /**
      * Get merchant features for this transaction's merchant.
-     *
-     * @return \Illuminate\Support\Collection
      */
     public function getMerchantFeaturesAttribute(): \Illuminate\Support\Collection
     {

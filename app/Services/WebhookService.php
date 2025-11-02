@@ -420,6 +420,11 @@ class WebhookService
      */
     protected function dispatchWebhook(string $url, string $secret, array $payload, Transaction $transaction): void
     {
+        if (app()->environment('local')) {
+            $url = config('site.webhook_url');
+        } else {
+            $url = $url;
+        }
         try {
             WebhookCall::create()
                 ->url($url)
@@ -450,9 +455,10 @@ class WebhookService
      * Sends a webhook immediately and returns the response.
      * Useful for testing webhook endpoints.
      *
-     * @param Transaction $transaction The transaction
-     * @param string|null $message Optional custom message
+     * @param  Transaction  $transaction  The transaction
+     * @param  string|null  $message  Optional custom message
      * @return array Returns response data including success status and response details
+     *
      * @throws GuzzleException
      */
     public function sendWebhookSync(Transaction $transaction, ?string $message = null): array

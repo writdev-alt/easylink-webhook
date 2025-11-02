@@ -7,25 +7,22 @@ use App\Services\Handlers\Interfaces\FailHandlerInterface;
 use App\Services\Handlers\Interfaces\SubmittedHandlerInterface;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
 use App\Services\WalletService;
+use App\Services\WebhookService;
 
 /**
  * DepositHandler class handles the processing of deposit requests.
  */
-class DepositHandler implements FailHandlerInterface, SubmittedHandlerInterface, SuccessHandlerInterface
+class DepositHandler implements SuccessHandlerInterface
 {
-    public function handleSuccess(Transaction $transaction): void
+    public function handleSuccess(Transaction $transaction): bool
     {
-        app(WalletService::class)->addMoneyByWalletUuid($transaction->wallet_reference, $transaction->net_amount);
+
+        app(WebhookService::class)->sendPaymentReceiveWebhook($transaction, 'Deposit Completed');
+        $wallet = app(WalletService::class)->addMoneyByWalletUuid($transaction->wallet_reference, $transaction->net_amount);
+        if ($wallet) {
+            return true;
+        }
+        return false;
 
     }
-
-    /**
-     * Handle fail of deposit request.
-     */
-    public function handleFail(Transaction $transaction): void {}
-
-    /**
-     * Handle submitted of deposit request.
-     */
-    public function handleSubmitted(Transaction $transaction): void {}
 }

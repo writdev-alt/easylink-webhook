@@ -24,7 +24,7 @@ class DepositHandlerTest extends TestCase
 
     public function test_handle_success_adds_money_to_wallet(): void
     {
-        $handler = new DepositHandler();
+        $handler = new DepositHandler;
 
         $transaction = new Transaction([
             'wallet_reference' => 'wallet-uuid',
@@ -45,21 +45,19 @@ class DepositHandlerTest extends TestCase
 
     public function test_handle_fail_is_noop(): void
     {
-        $handler = new DepositHandler();
+        $handler = new DepositHandler;
 
-        $transaction = new Transaction();
+        $transaction = new Transaction;
 
         $this->assertNull($handler->handleFail($transaction));
     }
 
     public function test_handle_submitted_is_noop(): void
     {
-        $handler = new DepositHandler();
+        $handler = new DepositHandler;
 
-        $transaction = new Transaction();
+        $transaction = new Transaction;
 
         $this->assertNull($handler->handleSubmitted($transaction));
     }
 }
-
-

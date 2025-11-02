@@ -32,5 +32,3 @@ class RemittanceTypeTest extends TestCase
         $this->assertSame('international', RemittanceType::INTERNATIONAL->value);
     }
 }
-
-

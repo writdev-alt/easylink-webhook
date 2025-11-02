@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $deleted_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Transaction> $transactions
  * @property-read int|null $transactions_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Customer newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Customer newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Customer query()
@@ -35,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Customer whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Customer whereWhatsapp($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Customer whereWhatsappVerified($value)
+ *
  * @mixin \Eloquent
  */
 class Customer extends Model

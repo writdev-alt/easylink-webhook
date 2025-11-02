@@ -6,5 +6,5 @@ use App\Models\Transaction;
 
 interface SuccessHandlerInterface
 {
-    public function handleSuccess(Transaction $transaction): void;
+    public function handleSuccess(Transaction $transaction): bool;
 }

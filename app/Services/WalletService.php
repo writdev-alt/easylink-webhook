@@ -22,7 +22,6 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  */
 class WalletService
 {
-
     /**
      * Get a wallet by its unique UUID
      *
@@ -173,7 +172,6 @@ class WalletService
         return $wallet->refresh();
     }
 
-
     /**
      * Check if a user already has a wallet in a specific currency.
      */
@@ -181,5 +179,4 @@ class WalletService
     {
         return $user->wallets()->where('currency_id', $currencyId)->exists();
     }
-
 }

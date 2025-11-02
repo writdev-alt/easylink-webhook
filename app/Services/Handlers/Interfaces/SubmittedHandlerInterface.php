@@ -6,5 +6,5 @@ use App\Models\Transaction;
 
 interface SubmittedHandlerInterface
 {
-    public function handleSubmitted(Transaction $transaction): void;
+    public function handleSubmitted(Transaction $transaction): bool;
 }

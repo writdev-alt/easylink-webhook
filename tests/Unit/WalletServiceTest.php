@@ -112,5 +112,3 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(1250.0, $updated->getActualBalance());
     }
 }
-
-

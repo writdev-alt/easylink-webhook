@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Unit\Handlers;
 
 use App\Models\Transaction;
+use App\Payment\PaymentGatewayFactory;
 use App\Services\Handlers\WithdrawHandler;
 use App\Services\WalletService;
 use App\Services\WebhookService;
-use App\Payment\PaymentGatewayFactory;
 use Mockery;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Tests\TestCase;
@@ -39,7 +39,7 @@ class WithdrawHandlerTest extends TestCase
 
         app()->instance(WebhookService::class, $webhookMock);
 
-        $handler = new WithdrawHandler();
+        $handler = new WithdrawHandler;
         $handler->handleFail($transaction);
 
         $this->addToAssertionCount(1);
@@ -58,7 +58,7 @@ class WithdrawHandlerTest extends TestCase
 
         app()->instance(WebhookService::class, $webhookMock);
 
-        $handler = new WithdrawHandler();
+        $handler = new WithdrawHandler;
         $handler->handleSubmitted($transaction);
 
         $this->addToAssertionCount(1);
@@ -66,7 +66,8 @@ class WithdrawHandlerTest extends TestCase
 
     public function test_handle_success_updates_transaction_and_notifies_services(): void
     {
-        $transaction = new class(['trx_id' => 'TRX-3001', 'wallet_reference' => 'wallet-xyz', 'payable_amount' => 750.0, 'trx_data' => ['reference' => 'REF-123']]) extends Transaction {
+        $transaction = new class(['trx_id' => 'TRX-3001', 'wallet_reference' => 'wallet-xyz', 'payable_amount' => 750.0, 'trx_data' => ['reference' => 'REF-123']]) extends Transaction
+        {
             public array $updates = [];
 
             public function __construct(array $attributes = [])
@@ -110,7 +111,7 @@ class WithdrawHandlerTest extends TestCase
             ->with($transaction, 'withdrawal.completed');
         app()->instance(WebhookService::class, $webhookMock);
 
-        $handler = new WithdrawHandler();
+        $handler = new WithdrawHandler;
         $handler->handleSuccess($transaction);
 
         $expectedTrxData = array_merge(['reference' => 'REF-123'], $disbursementPayload);
@@ -139,5 +140,3 @@ class WithdrawHandlerTest extends TestCase
         ];
     }
 }
-
-

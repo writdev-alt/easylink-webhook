@@ -333,4 +333,3 @@ class IPNControllerTest extends TestCase
         return $request;
     }
 }
-

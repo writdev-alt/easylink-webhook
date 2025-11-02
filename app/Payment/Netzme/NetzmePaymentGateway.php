@@ -3,6 +3,7 @@
 namespace App\Payment\Netzme;
 
 use App\Enums\TrxStatus;
+use App\Enums\TrxType;
 use App\Models\Transaction;
 use App\Payment\PaymentGateway;
 use App\Services\TransactionService;
@@ -23,33 +24,44 @@ class NetzmePaymentGateway implements PaymentGateway
      * Handles the IPN callback from the Netzme payment gateway.
      *
      * @param  Request  $request  The incoming request containing the IPN data.
-     * @return \Illuminate\Http\JsonResponse A JSON response indicating the status.
+     * @return bool A JSON response indicating the status.
      *
      * @throws \Throwable
      */
-    public function handleIPN(Request $request): \Illuminate\Http\JsonResponse
+    public function handleIPN(Request $request): bool
     {
-        if ($transaction = Transaction::where('trx_id', $request->originalPartnerReferenceNo)->whereIn('trx_type', )->first()) {
-            $data = array_merge($transaction->trx_data ?? [], [
-                'netzme_ipn_response' => (array) $request->all() ?? [],
+        if ($transaction = Transaction::where('trx_id', $request->originalPartnerReferenceNo)->whereIn('trx_type', [TrxType::RECEIVE_PAYMENT, TrxType::DEPOSIT])->first()) {
+            $existingData = $transaction->trx_data ?? [];
+            $hitCount = ($existingData['netzme_ipn_hit_count'] ?? 0) + 1;
+
+            $data = array_merge($existingData, [
+                'netzme_ipn_response' => $request->toArray() ?? [],
             ]);
             $transaction->update(['trx_data' => $data]);
             $transaction->save();
             $transaction->refresh();
 
-            app(TransactionService::class)->completeTransaction($request->originalPartnerReferenceNo);
-            app(WebhookService::class)->sendPaymentReceiveWebhook($transaction);
+            Log::info('Netzme transaction IPN hit', [
+                'trx_id' => $transaction->trx_id,
+                'hit_count' => $hitCount,
+                'transaction_status' => $request->transactionStatusDesc ?? null,
+                'latest_status' => $request->latestTransactionStatus ?? null,
+            ]);
 
+            app(WebhookService::class)->sendPaymentReceiveWebhook($transaction);
             if ($request->transactionStatusDesc === 'Success' && $request->latestTransactionStatus === '00') {
                 if ($transaction->status !== TrxStatus::COMPLETED) {
                     app(TransactionService::class)->completeTransaction($request->originalPartnerReferenceNo);
                     app(WebhookService::class)->sendPaymentReceiveWebhook($transaction);
                 }
-                return response()->json(['status' => 'success']);
+
+                return true;
             }
+
+            return true;
 
         }
 
-        return response()->json(['status' => 'failed'], Response::HTTP_BAD_REQUEST);
+        return false;
     }
 }

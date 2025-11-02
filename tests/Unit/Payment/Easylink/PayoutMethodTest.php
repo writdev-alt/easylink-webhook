@@ -81,5 +81,3 @@ class PayoutMethodTest extends TestCase
         PayoutMethod::fromStatusCode(0);
     }
 }
-
-

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read mixed $dynamic_status
  * @property-read mixed $effective_value
  * @property-read \App\Models\Merchant $merchant
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MerchantFeature byCategory(string $category)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MerchantFeature enabled()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MerchantFeature forMerchant(int $merchantId)
@@ -44,6 +45,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MerchantFeature whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MerchantFeature whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MerchantFeature whereValue($value)
+ *
  * @mixin \Eloquent
  */
 class MerchantFeature extends Model

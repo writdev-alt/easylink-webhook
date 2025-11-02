@@ -28,7 +28,7 @@ class WebhookServiceTest extends TestCase
         $transaction->setAttribute('trx_type', TrxType::RECEIVE_PAYMENT);
         $transaction->shouldReceive('isWebhookEnabled')->once()->andReturn(false);
 
-        $service = new WebhookService();
+        $service = new WebhookService;
 
         $this->assertFalse($service->sendWebhook($transaction));
     }
@@ -41,7 +41,7 @@ class WebhookServiceTest extends TestCase
         $transaction->shouldReceive('isWebhookEnabled')->once()->andReturn(true);
         $transaction->shouldReceive('alreadySentAutomaticWebhook')->once()->andReturn(true);
 
-        $service = new WebhookService();
+        $service = new WebhookService;
 
         $this->assertFalse($service->sendWebhook($transaction));
     }
@@ -129,5 +129,3 @@ class WebhookServiceTest extends TestCase
         $this->assertFalse($service->sendPaymentReceiveWebhook($transaction));
     }
 }
-
-
