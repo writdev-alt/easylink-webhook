@@ -1,0 +1,15 @@
+{
+    "disbursement_id": "202510162200620000082571",
+    "reference_id": "TRX-2025.10.30-BROIP4S4RU",
+    "remittance_type": "domestic",
+    "source_country": "IDN",
+    "source_currency": "IDR",
+    "destination_country": "IDN",
+    "destination_currency": "IDR",
+    "source_amount": "100123.000000000000000000",
+    "destination_amount": "100123.000000000000000000",
+    "fee": "3500.000000000000000000",
+    "state": "2",
+    "state_change_time": "2025-10-16T15:33:02+07:00",
+    "reason": ""
+}

@@ -1,0 +1,47 @@
+{
+    "amount": {
+        "value": "1410.00",
+        "currency": "IDR"
+    },
+    "feeAmount": {
+        "value": "10.00",
+        "currency": "IDR"
+    },
+    "netAmount": {
+        "value": "1410.00",
+        "currency": "IDR"
+    },
+    "splitFees": [],
+    "isSplitfee": false,
+    "additionalInfo": {
+        "rrn": "666883297492",
+        "issuerId": "93600814",
+        "qrDetail": {
+            "amount": "IDR 1410.00",
+            "issuerId": "93600814",
+            "netAmount": "IDR 1400.00",
+            "issuerName": "Netzme",
+            "terminalId": "A01",
+            "buyerUserId": "9360081435194925508",
+            "customerPan": "9360081435194925508",
+            "merchantFee": "IDR 10.00",
+            "merchantPan": "9360081401001083469",
+            "referenceId": "6668832974922025102493600814",
+            "acquirerName": "Netzme",
+            "merchantName": "IIS ",
+            "buyerFullname": " _____________________________",
+            "transactionId": "25102402345049781263",
+            "merchantLocation": "SIMEULUE",
+            "localTransactionDate": "20251024"
+        },
+        "invoiceId": "NETZ-INV-M_a41fC3JO1761247980154U9n",
+        "paymentTime": "2025-10-24T02:34:46.330+07:00",
+        "paymentMethod": "QRIS",
+        "custIdMerchant": "M_a41fC3JO",
+        "localTrasactionDate": 20251024
+    },
+    "originalReferenceNo": "7b7d736b6d9b4fd3a9ecece7308bb582",
+    "transactionStatusDesc": "Pending",
+    "latestTransactionStatus": "01",
+    "originalPartnerReferenceNo": "TRX-2025.10.24-PH0YAVZULY"
+}
