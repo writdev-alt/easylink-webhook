@@ -133,7 +133,7 @@ class TransactionService
      * @param  string|null  $remarks  Optional remarks for the transaction update.
      * @param  bool  $refund  Flag to determine if a refund should be issued.
      *
-     * @throws NotifyErrorException
+     * @throws \Exception
      */
     public function cancelTransaction(string $trxId, ?string $remarks = null, bool $refund = false): void
     {

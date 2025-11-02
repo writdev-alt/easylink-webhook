@@ -56,6 +56,6 @@ class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface
     public function handleSubmitted(Transaction $transaction): bool
     {
         // Send webhook notification
-        app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal submitted');
+        return app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal submitted');
     }
 }
