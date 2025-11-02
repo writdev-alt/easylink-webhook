@@ -21,6 +21,7 @@ class PaymentHandler implements SuccessHandlerInterface
         if ($wallet) {
             return $wallet->addToHoldBalance($transaction->net_amount);
         }
+
         return false;
     }
 }

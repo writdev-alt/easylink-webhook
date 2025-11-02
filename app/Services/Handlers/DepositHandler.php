@@ -3,8 +3,6 @@
 namespace App\Services\Handlers;
 
 use App\Models\Transaction;
-use App\Services\Handlers\Interfaces\FailHandlerInterface;
-use App\Services\Handlers\Interfaces\SubmittedHandlerInterface;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
 use App\Services\WalletService;
 use App\Services\WebhookService;
@@ -22,6 +20,7 @@ class DepositHandler implements SuccessHandlerInterface
         if ($wallet) {
             return true;
         }
+
         return false;
 
     }
