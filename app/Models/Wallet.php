@@ -60,12 +60,12 @@ class Wallet extends Model
      * @var array
      */
     protected $fillable = [
-        'currency_id',
         'user_id',
+        'currency_id',
         'uuid',
         'balance',
-        'balance_sandbox',
         'hold_balance',
+        'balance_sandbox',
         'hold_balance_sandbox',
         'status',
     ];
@@ -74,14 +74,21 @@ class Wallet extends Model
      * @var array
      */
     protected $casts = [
-        'currency_id' => 'integer',
-        'user_id' => 'integer',
         'balance' => 'float',
         'balance_sandbox' => 'float',
         'hold_balance' => 'float',
         'hold_balance_sandbox' => 'float',
-        'uuid' => 'string',
         'status' => 'boolean',
+    ];
+
+    /**
+     * Model-level default attributes.
+     * Ensure status defaults to true at creation time.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'status' => true,
     ];
 
     /**
@@ -129,7 +136,7 @@ class Wallet extends Model
      */
     public function hasCurrencyRole(string $role): bool
     {
-        return $this->currency->hasRole($role);
+        return optional($this->currency)->hasRole($role) ?? false;
     }
 
     /**
@@ -225,17 +232,18 @@ class Wallet extends Model
     /**
      * Get the hold balance field name based on app mode.
      */
-    public function getHoldBalanceFieldName(): string
+    public function getHoldBalanceFieldName(bool $sandbox = false): string
     {
-        return config('app.mode') === 'sandbox' ? 'hold_balance_sandbox' : 'hold_balance';
+        $isSandbox = $sandbox || config('app.mode') === 'sandbox';
+        return $isSandbox ? 'hold_balance_sandbox' : 'hold_balance';
     }
 
     /**
      * Get the actual hold balance value based on app mode.
      */
-    public function getActualHoldBalance(): float
+    public function getActualHoldBalance(bool $sandbox = false): float
     {
-        $fieldName = $this->getHoldBalanceFieldName();
+        $fieldName = $this->getHoldBalanceFieldName($sandbox);
 
         return (float) ($this->attributes[$fieldName] ?? 0);
     }
@@ -243,15 +251,15 @@ class Wallet extends Model
     /**
      * Get available balance (balance - hold balance).
      */
-    public function getAvailableBalance(): float
+    public function getAvailableBalance(bool $sandbox = false): float
     {
-        return $this->getActualBalance() - $this->getActualHoldBalance();
+        return $this->getActualBalance($sandbox) - $this->getActualHoldBalance($sandbox);
     }
 
     protected function totalBalance(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->getActualBalance() - $this->getActualHoldBalance(),
+            get: fn () => $this->getActualBalance() + $this->getActualHoldBalance(),
         );
     }
 
@@ -283,19 +291,20 @@ class Wallet extends Model
     /**
      * Get the actual balance field name based on app mode.
      */
-    public function getBalanceFieldName(): string
+    public function getBalanceFieldName(bool $sandbox = false): string
     {
-        return config('app.mode') === 'sandbox' ? 'balance_sandbox' : 'balance';
+        $isSandbox = $sandbox || config('app.mode') === 'sandbox';
+        return $isSandbox ? 'balance_sandbox' : 'balance';
     }
 
     /**
      * Get the actual balance value based on app mode.
      */
-    public function getActualBalance(): float
+    public function getActualBalance(bool $sandbox = false): float
     {
-        $fieldName = $this->getBalanceFieldName();
+        $fieldName = $this->getBalanceFieldName($sandbox);
 
-        return (float) $this->attributes[$fieldName] ?? 0;
+        return (float) ($this->attributes[$fieldName] ?? 0);
     }
 
     /**
@@ -310,21 +319,25 @@ class Wallet extends Model
 
     /**
      * Increment balance based on app mode.
+     * Uses rounding down (floor) for the amount.
      */
     public function incrementBalance(float $amount): bool
     {
         $fieldName = $this->getBalanceFieldName();
+        $roundedAmount = floor($amount);
 
-        return $this->increment($fieldName, $amount);
+        return $this->increment($fieldName, $roundedAmount);
     }
 
     /**
      * Decrement balance based on app mode.
+     * Uses rounding up (ceil) for the amount.
      */
     public function decrementBalance(float $amount): bool
     {
         $fieldName = $this->getBalanceFieldName();
+        $roundedAmount = ceil($amount);
 
-        return $this->decrement($fieldName, $amount);
+        return $this->decrement($fieldName, $roundedAmount);
     }
 }

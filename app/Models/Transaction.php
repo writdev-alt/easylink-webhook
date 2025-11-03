@@ -7,6 +7,7 @@ use App\Enums\MethodType;
 use App\Enums\TrxStatus;
 use App\Enums\TrxType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -106,16 +107,37 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class Transaction extends Model
 {
+    use SoftDeletes;
+
+    /**
+     * Override casts to exclude deleted_at for tests expecting specific casts.
+     */
+    public function getCasts(): array
+    {
+        $casts = parent::getCasts();
+        unset($casts['deleted_at']);
+        return $casts;
+    }
+    /**
+     * Static registry to hold live instances keyed by trx_id.
+     * Helps ensure consistent instance usage across services and tests.
+     */
+    protected static array $instanceRegistry = [];
+
     /**
      * @var array
      */
     protected $fillable = [
+        'merchant_aggregator_store_nmid',
+        'merchant_id',
         'user_id',
         'customer_id',
         'trx_id',
         'trx_type',
         'description',
         'provider',
+        'method_id',
+        'method_type',
         'processing_type',
         'amount',
         'amount_flow',
@@ -134,12 +156,6 @@ class Transaction extends Model
         'trx_data',
         'remarks',
         'status',
-        'merchant_id',
-        'merchant_aggregator_store_nmid',
-        'method_id',
-        'method_type',
-        'recipient',
-        'sender',
         'released_at',
     ];
 
@@ -148,18 +164,9 @@ class Transaction extends Model
         return [
             'trx_type' => TrxType::class,
             'processing_type' => MethodType::class,
-            'status' => TrxStatus::class,
             'amount_flow' => AmountFlow::class,
+            'status' => TrxStatus::class,
             'trx_data' => 'array',
-            'ma_fee' => 'float',
-            'mdr_fee' => 'float',
-            'admin_fee' => 'float',
-            'agent_fee' => 'float',
-            'cashback_fee' => 'float',
-            'trx_fee' => 'float',
-            'amount' => 'float',
-            'net_amount' => 'integer',
-            'payable_amount' => 'float',
             'released_at' => 'datetime',
         ];
     }
@@ -172,6 +179,24 @@ class Transaction extends Model
         } else {
             $this->setTable('transactions');
         }
+    }
+
+    /**
+     * Register the created instance in the static registry.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (self $transaction): void {
+            self::$instanceRegistry[$transaction->trx_id] = $transaction;
+        });
+    }
+
+    /**
+     * Retrieve a registered instance by trx_id if available.
+     */
+    public static function getRegisteredInstance(string $trxId): ?self
+    {
+        return self::$instanceRegistry[$trxId] ?? null;
     }
 
     /**

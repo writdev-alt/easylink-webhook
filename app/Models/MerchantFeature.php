@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\MerchantStatus;
 
 /**
  * @property int $id
@@ -82,15 +83,15 @@ class MerchantFeature extends Model
         }
 
         // Override status based on merchant verification/approval status
-        if ($this->feature === 'webhooks_enabled' && $merchant->status !== 'approved') {
+        if ($this->feature === 'webhooks_enabled' && $merchant->status !== MerchantStatus::APPROVED) {
             return false; // Cannot enable webhooks for non-approved merchants
         }
 
-        if ($this->feature === 'api_ip_whitelist_enabled' && $merchant->status !== 'approved') {
+        if ($this->feature === 'api_ip_whitelist_enabled' && $merchant->status !== MerchantStatus::APPROVED) {
             return false; // Cannot enable IP whitelist for non-approved merchants
         }
 
-        if ($this->feature === 'multi_currency_enabled' && $merchant->status !== 'approved') {
+        if ($this->feature === 'multi_currency_enabled' && $merchant->status !== MerchantStatus::APPROVED) {
             return false; // Cannot enable multi-currency for non-approved merchants
         }
 

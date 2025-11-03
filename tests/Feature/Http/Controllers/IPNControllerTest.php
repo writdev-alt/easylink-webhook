@@ -137,7 +137,7 @@ class IPNControllerTest extends TestCase
 
         $this->assertSame(200, $response->status());
         $this->assertSame([
-            'status' => 'accepted',
+            'status' => 'success',
             'message' => 'Webhook received',
         ], $response->getData(true));
 
@@ -179,7 +179,7 @@ class IPNControllerTest extends TestCase
 
         $this->assertSame(200, $response->status());
         $this->assertSame([
-            'status' => 'queued',
+            'status' => 'success',
             'message' => 'Webhook received',
         ], $response->getData(true));
 
@@ -294,7 +294,7 @@ class IPNControllerTest extends TestCase
 
         $this->assertSame(200, $response->status());
         $this->assertSame([
-            'status' => 'pending',
+            'status' => 'success',
             'message' => 'Webhook received',
         ], $response->getData(true));
 

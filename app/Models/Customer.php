@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -41,6 +42,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Customer extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'name',
         'whatsapp',
@@ -52,6 +54,17 @@ class Customer extends Model
     protected $casts = [
         'whatsapp_verified' => 'boolean',
         'email_verified' => 'boolean',
+    ];
+
+    /**
+     * Model-level default attributes to ensure booleans default correctly
+     * without relying on database defaults being reflected immediately.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'whatsapp_verified' => false,
+        'email_verified' => false,
     ];
 
     /**

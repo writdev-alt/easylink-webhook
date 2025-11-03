@@ -13,10 +13,28 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            // Core auth fields
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
+            // Extended profile fields per tests
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('username')->unique();
+            $table->string('phone')->nullable();
+            $table->string('whatsapp')->nullable();
+            $table->string('telegram')->nullable();
+            $table->string('gender')->nullable();
+            $table->string('birthday')->nullable();
+            $table->string('country')->nullable();
+            $table->string('address')->nullable();
+            $table->string('role')->nullable();
+            $table->boolean('status')->default(true);
+            $table->boolean('two_factor_enabled')->default(false);
+            $table->string('referral_code')->nullable();
+            $table->string('avatar')->nullable();
+            $table->string('google2fa_secret')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

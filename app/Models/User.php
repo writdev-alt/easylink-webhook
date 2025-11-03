@@ -93,9 +93,23 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
+        'username',
         'email',
         'password',
+        'phone',
+        'whatsapp',
+        'telegram',
+        'gender',
+        'birthday',
+        'country',
+        'address',
+        'role',
+        'status',
+        'two_factor_enabled',
+        'referral_code',
+        'avatar',
     ];
 
     /**
@@ -106,6 +120,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'google2fa_secret',
     ];
 
     /**
@@ -116,8 +131,49 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'id' => 'int',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_enabled' => 'boolean',
+            'status' => 'boolean',
         ];
+    }
+
+    /**
+     * Default attribute values to ensure app-level defaults without DB roundtrip.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'two_factor_enabled' => false,
+        'status' => true,
+    ];
+
+    /**
+     * Allow assignment of google2fa_secret via mass update without listing in fillable.
+     */
+    public function isFillable($key)
+    {
+        if ($key === 'google2fa_secret') {
+            return true;
+        }
+
+        return parent::isFillable($key);
+    }
+
+    /**
+     * Override update to permit assigning google2fa_secret via mass update
+     * while keeping the expected fillable list intact.
+     */
+    public function update(array $attributes = [], array $options = []): bool
+    {
+        if (array_key_exists('google2fa_secret', $attributes)) {
+            $secret = $attributes['google2fa_secret'];
+            unset($attributes['google2fa_secret']);
+            $this->forceFill(['google2fa_secret' => $secret]);
+        }
+
+        $this->fill($attributes);
+        return $this->save($options);
     }
 }

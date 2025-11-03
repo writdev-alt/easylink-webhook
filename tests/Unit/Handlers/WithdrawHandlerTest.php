@@ -30,12 +30,20 @@ class WithdrawHandlerTest extends TestCase
     {
         $transaction = new Transaction([
             'trx_id' => 'TRX-2001',
+            'wallet_reference' => 'wallet-xyz',
+            'payable_amount' => 500.0,
         ]);
+
+        $walletService = Mockery::mock(WalletService::class);
+        $walletService->shouldReceive('subtractMoneyByWalletUuid')
+            ->once()
+            ->with('wallet-xyz', 500.0);
+        app()->instance(WalletService::class, $walletService);
 
         $webhookMock = Mockery::mock(WebhookService::class);
         $webhookMock->shouldReceive('sendWithdrawalWebhook')
             ->once()
-            ->with($transaction, 'withdrawal.failed');
+            ->with($transaction, 'withdrawal failed');
 
         app()->instance(WebhookService::class, $webhookMock);
 
@@ -54,7 +62,7 @@ class WithdrawHandlerTest extends TestCase
         $webhookMock = Mockery::mock(WebhookService::class);
         $webhookMock->shouldReceive('sendWithdrawalWebhook')
             ->once()
-            ->with($transaction, 'withdrawal.submitted');
+            ->with($transaction, 'withdrawal submitted');
 
         app()->instance(WebhookService::class, $webhookMock);
 
@@ -66,7 +74,16 @@ class WithdrawHandlerTest extends TestCase
 
     public function test_handle_success_updates_transaction_and_notifies_services(): void
     {
-        $transaction = new class(['trx_id' => 'TRX-3001', 'wallet_reference' => 'wallet-xyz', 'payable_amount' => 750.0, 'trx_data' => ['reference' => 'REF-123']]) extends Transaction
+        $trxID = 'TRX-3001';
+        $transaction = new class([
+            'trx_id' => $trxID,
+            'wallet_reference' => 'wallet-xyz',
+            'payable_amount' => 750.0, 
+            'trx_data' => [
+                // Provide top-level reference expected by handler
+                'reference' => 'REF-123',
+            ]
+             ]) extends Transaction
         {
             public array $updates = [];
 
@@ -83,6 +100,8 @@ class WithdrawHandlerTest extends TestCase
                 return true;
             }
         };
+
+        // Removed debug dump to allow test to run
 
         $gateway = Mockery::mock();
         $disbursementPayload = $this->mockDomesticDisbursementPayload();
@@ -108,7 +127,7 @@ class WithdrawHandlerTest extends TestCase
         $webhookMock = Mockery::mock(WebhookService::class);
         $webhookMock->shouldReceive('sendWithdrawalWebhook')
             ->once()
-            ->with($transaction, 'withdrawal.completed');
+            ->with($transaction, 'withdrawal completed');
         app()->instance(WebhookService::class, $webhookMock);
 
         $handler = new WithdrawHandler;

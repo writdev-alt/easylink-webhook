@@ -46,15 +46,16 @@ class WebhookCall extends Model
         'uuid',
         'name',
         'url',
+        'http_verb',
         'headers',
         'payload',
-        'http_verb',
         'raw_body',
         'meta',
         'exception',
     ];
 
     protected $casts = [
+        'id' => 'int',
         'headers' => 'array',
         'payload' => 'array',
         'meta' => 'array',

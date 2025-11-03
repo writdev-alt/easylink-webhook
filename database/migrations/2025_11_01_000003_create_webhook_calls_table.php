@@ -8,7 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::connection('mysql_site')->create('webhook_calls', function (Blueprint $table): void {
+        $schema = Schema::connection('mysql_site');
+
+        // Guard against duplicate creation when tests/migrations run multiple times
+        if ($schema->hasTable('webhook_calls')) {
+            return;
+        }
+
+        $schema->create('webhook_calls', function (Blueprint $table): void {
             $table->uuid('uuid')->nullable()->index();
             $table->string('name');
             $table->text('url');

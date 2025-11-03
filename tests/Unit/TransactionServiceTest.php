@@ -10,8 +10,7 @@ use App\Exceptions\NotifyErrorException;
 use App\Models\Transaction;
 use App\Services\Handlers\DepositHandler;
 use App\Services\TransactionService;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
@@ -21,42 +20,13 @@ class TransactionServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        Schema::dropIfExists('transactions');
-        Schema::dropIfExists('users');
-
-        Schema::create('users', function (Blueprint $table): void {
-            $table->id();
-            $table->string('name')->nullable();
-            $table->string('email')->nullable();
-            $table->string('password')->nullable();
-            $table->rememberToken();
-            $table->timestamps();
-        });
-
-        Schema::create('transactions', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedBigInteger('user_id')->nullable();
-            $table->string('trx_id')->unique();
-            $table->string('trx_type');
-            $table->string('status')->default(TrxStatus::PENDING->value);
-            $table->decimal('trx_fee', 18, 2)->default(0);
-            $table->string('remarks')->nullable();
-            $table->string('description')->nullable();
-            $table->string('wallet_reference')->nullable();
-            $table->json('trx_data')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        // Ensure migrations are applied for this unit test
+        Artisan::call('migrate:fresh');
     }
 
     protected function tearDown(): void
     {
         Mockery::close();
-
-        Schema::dropIfExists('transactions');
-        Schema::dropIfExists('users');
-
         parent::tearDown();
     }
 

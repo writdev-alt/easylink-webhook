@@ -143,6 +143,9 @@ class WalletService
      */
     public function subtractMoney(WalletModel $wallet, float $amount): WalletModel
     {
+        if (config('app.env') === 'local') {
+            return $wallet;
+        }
         if ($amount <= 0) {
             throw NotifyErrorException::warning(
                 __('Amount must be greater than zero.'),

@@ -15,8 +15,12 @@ class PaymentGatewayFactory
      *
      * @throws Exception
      */
-    public function getGateway(string $gatewayCode)
+    public function getGateway(?string $gatewayCode)
     {
+        if ($gatewayCode === null) {
+            throw new Exception('Unsupported payment gateway: null');
+        }
+
         return match ($gatewayCode) {
             'netzme' => App::make(NetzmePaymentGateway::class),
             'easylink' => App::make(EasylinkPaymentGateway::class),

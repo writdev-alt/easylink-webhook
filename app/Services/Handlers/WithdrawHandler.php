@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use App\Services\Handlers\Interfaces\FailHandlerInterface;
 use App\Services\Handlers\Interfaces\SubmittedHandlerInterface;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
+use App\Payment\PaymentGatewayFactory;
 use App\Services\WalletService;
 use App\Services\WebhookService;
 
@@ -15,17 +16,30 @@ use App\Services\WebhookService;
 class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface, SuccessHandlerInterface
 {
     /**
-     * Handle failed state with detailed reason information.
+     * Handle successful withdrawal: merge gateway data, subtract funds, send webhook.
      */
     public function handleSuccess(Transaction $transaction): bool
     {
-        app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal successful');
-        $wallet = app(WalletService::class)->subtractMoneyByWalletUuid($transaction->wallet_reference, $transaction->payable_amount);
-        if ($wallet) {
-            return true;
+        // Merge gateway disbursement data into trx_data using reference
+        $reference = is_array($transaction->trx_data ?? null) ? ($transaction->trx_data['reference'] ?? null) : null;
+        if ($reference) {
+            $gateway = app(PaymentGatewayFactory::class)->getGateway('easylink');
+            $payload = $gateway->getDomesticTransfer($reference);
+
+            $merged = array_merge(['reference' => $reference], (array) $payload);
+            $transaction->update(['trx_data' => $merged]);
         }
 
-        return false;
+        // Subtract payable amount from wallet
+        app(WalletService::class)->subtractMoneyByWalletUuid(
+            $transaction->wallet_reference,
+            (float) $transaction->payable_amount
+        );
+
+        // Notify webhook as completed
+        app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal completed');
+
+        return true;
     }
 
     /**
@@ -33,15 +47,15 @@ class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface
      */
     public function handleFail(Transaction $transaction): bool
     {
-        // Send webhook notification
-        app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal failed');
-        // Refund the amount to user's wallet
-        $wallet = app(WalletService::class)->addMoneyByWalletUuid($transaction->wallet_reference, $transaction->payable_amount);
-        if ($wallet) {
-            return true;
-        }
+        // Subtract payable amount from wallet
+        app(WalletService::class)->subtractMoneyByWalletUuid(
+            $transaction->wallet_reference,
+            (float) $transaction->payable_amount
+        );
 
-        return false;
+        app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal failed');
+
+        return true;
     }
 
     /**
@@ -49,7 +63,6 @@ class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface
      */
     public function handleSubmitted(Transaction $transaction): bool
     {
-        // Send webhook notification
         return app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal submitted');
     }
 }

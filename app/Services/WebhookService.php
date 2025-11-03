@@ -40,7 +40,7 @@ class WebhookService
     {
         // Check if webhooks are enabled for this transaction
         if (! $transaction->isWebhookEnabled()) {
-            Log::info('Webhook skipped: webhooks not enabled', [
+            Log::channel('webhook')->info('Webhook skipped: webhooks not enabled', [
                 'trx_id' => $transaction->trx_id,
                 'trx_type' => $transaction->trx_type->value,
             ]);
@@ -50,9 +50,24 @@ class WebhookService
 
         // Check if webhook was already sent
         if ($transaction->alreadySentAutomaticWebhook()) {
-            Log::info('Webhook skipped: already sent', [
+            $trxData = $transaction->trx_data ?? [];
+            $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
+            
+            // Update attempt count
+            $trxData['webhook_attempts'] = $attemptCount;
+            $trxData['webhook_attempt_history'][] = [
+                'attempt' => $attemptCount,
+                'timestamp' => now()->toIso8601String(),
+                'status' => 'duplicate_attempt',
+                'message' => 'Webhook already sent, duplicate attempt blocked',
+            ];
+            $transaction->update(['trx_data' => $trxData]);
+
+            Log::channel('webhook')->warning('Webhook duplicate attempt blocked', [
                 'trx_id' => $transaction->trx_id,
                 'webhook_call_at' => $transaction->webhook_call,
+                'attempt_count' => $attemptCount,
+                'trx_type' => $transaction->trx_type->value,
             ]);
 
             return false;
@@ -81,14 +96,30 @@ class WebhookService
      */
     public function sendPaymentReceiveWebhook(Transaction $transaction, ?string $message = null): bool
     {
+        $trxData = $transaction->trx_data ?? [];
+        $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
+        
         try {
             $webhookConfig = $transaction->getWebhookConfig();
 
             if (empty($webhookConfig['url']) || empty($webhookConfig['secret'])) {
-                Log::warning('Webhook skipped: missing configuration', [
+                // Update attempt tracking
+                $trxData['webhook_attempts'] = $attemptCount;
+                $trxData['webhook_attempt_history'][] = [
+                    'attempt' => $attemptCount,
+                    'timestamp' => now()->toIso8601String(),
+                    'status' => 'failed',
+                    'reason' => 'missing_configuration',
+                    'has_url' => ! empty($webhookConfig['url']),
+                    'has_secret' => ! empty($webhookConfig['secret']),
+                ];
+                $transaction->update(['trx_data' => $trxData]);
+
+                Log::channel('webhook')->warning('Webhook skipped: missing configuration', [
                     'trx_id' => $transaction->trx_id,
                     'has_url' => ! empty($webhookConfig['url']),
                     'has_secret' => ! empty($webhookConfig['secret']),
+                    'attempt_count' => $attemptCount,
                 ]);
 
                 return false;
@@ -108,17 +139,46 @@ class WebhookService
             // Mark webhook as sent
             $transaction->setWebhookCall();
 
-            Log::info('Payment webhook sent successfully', [
+            // Update attempt tracking for success
+            $trxData['webhook_attempts'] = $attemptCount;
+            $trxData['webhook_attempt_history'][] = [
+                'attempt' => $attemptCount,
+                'timestamp' => now()->toIso8601String(),
+                'status' => 'success',
+                'webhook_url' => $webhookConfig['url'],
+            ];
+            $transaction->update(['trx_data' => $trxData]);
+
+            Log::channel('webhook')->info('Payment webhook sent successfully', [
                 'trx_id' => $transaction->trx_id,
                 'webhook_url' => $webhookConfig['url'],
                 'status' => $transaction->status->value,
+                'attempt_count' => $attemptCount,
             ]);
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Payment webhook failed', [
-                'trx_id' => $transaction->trx_id,
+            // Get webhook config if available (might not be set if exception occurred earlier)
+            $webhookConfig = $webhookConfig ?? $transaction->getWebhookConfig();
+            
+            // Update attempt tracking for failure
+            $trxData['webhook_attempts'] = $attemptCount;
+            $trxData['webhook_attempt_history'][] = [
+                'attempt' => $attemptCount,
+                'timestamp' => now()->toIso8601String(),
+                'status' => 'failed',
+                'reason' => 'exception',
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ];
+            $transaction->update(['trx_data' => $trxData]);
+
+            Log::channel('webhook')->error('Payment webhook failed', [
+                'trx_id' => $transaction->trx_id,
+                'attempt_count' => $attemptCount,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'webhook_url' => $webhookConfig['url'] ?? null,
                 'trace' => $e->getTraceAsString(),
             ]);
 
@@ -141,14 +201,30 @@ class WebhookService
      */
     public function sendWithdrawalWebhook(Transaction $transaction, ?string $message = null): bool
     {
+        $trxData = $transaction->trx_data ?? [];
+        $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
+        
         try {
             $webhookConfig = $transaction->getWebhookConfig();
 
             if (empty($webhookConfig['url']) || empty($webhookConfig['secret'])) {
-                Log::warning('Webhook skipped: missing configuration', [
+                // Update attempt tracking
+                $trxData['webhook_attempts'] = $attemptCount;
+                $trxData['webhook_attempt_history'][] = [
+                    'attempt' => $attemptCount,
+                    'timestamp' => now()->toIso8601String(),
+                    'status' => 'failed',
+                    'reason' => 'missing_configuration',
+                    'has_url' => ! empty($webhookConfig['url']),
+                    'has_secret' => ! empty($webhookConfig['secret']),
+                ];
+                $transaction->update(['trx_data' => $trxData]);
+
+                Log::channel('webhook')->warning('Webhook skipped: missing configuration', [
                     'trx_id' => $transaction->trx_id,
                     'has_url' => ! empty($webhookConfig['url']),
                     'has_secret' => ! empty($webhookConfig['secret']),
+                    'attempt_count' => $attemptCount,
                 ]);
 
                 return false;
@@ -168,17 +244,46 @@ class WebhookService
             // Mark webhook as sent
             $transaction->setWebhookCall();
 
-            Log::info('Withdrawal webhook sent successfully', [
+            // Update attempt tracking for success
+            $trxData['webhook_attempts'] = $attemptCount;
+            $trxData['webhook_attempt_history'][] = [
+                'attempt' => $attemptCount,
+                'timestamp' => now()->toIso8601String(),
+                'status' => 'success',
+                'webhook_url' => $webhookConfig['url'],
+            ];
+            $transaction->update(['trx_data' => $trxData]);
+
+            Log::channel('webhook')->info('Withdrawal webhook sent successfully', [
                 'trx_id' => $transaction->trx_id,
                 'webhook_url' => $webhookConfig['url'],
                 'status' => $transaction->status->value,
+                'attempt_count' => $attemptCount,
             ]);
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Withdrawal webhook failed', [
-                'trx_id' => $transaction->trx_id,
+            // Get webhook config if available (might not be set if exception occurred earlier)
+            $webhookConfig = isset($webhookConfig) ? $webhookConfig : $transaction->getWebhookConfig();
+            
+            // Update attempt tracking for failure
+            $trxData['webhook_attempts'] = $attemptCount;
+            $trxData['webhook_attempt_history'][] = [
+                'attempt' => $attemptCount,
+                'timestamp' => now()->toIso8601String(),
+                'status' => 'failed',
+                'reason' => 'exception',
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ];
+            $transaction->update(['trx_data' => $trxData]);
+
+            Log::channel('webhook')->error('Withdrawal webhook failed', [
+                'trx_id' => $transaction->trx_id,
+                'attempt_count' => $attemptCount,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'webhook_url' => $webhookConfig['url'] ?? null,
                 'trace' => $e->getTraceAsString(),
             ]);
 
@@ -198,13 +303,29 @@ class WebhookService
      */
     public function sendGenericWebhook(Transaction $transaction, ?string $message = null): bool
     {
+        $trxData = $transaction->trx_data ?? [];
+        $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
+        
         try {
             $webhookConfig = $transaction->getWebhookConfig();
 
             if (empty($webhookConfig['url']) || empty($webhookConfig['secret'])) {
-                Log::warning('Webhook skipped: missing configuration', [
+                // Update attempt tracking
+                $trxData['webhook_attempts'] = $attemptCount;
+                $trxData['webhook_attempt_history'][] = [
+                    'attempt' => $attemptCount,
+                    'timestamp' => now()->toIso8601String(),
+                    'status' => 'failed',
+                    'reason' => 'missing_configuration',
+                    'has_url' => ! empty($webhookConfig['url']),
+                    'has_secret' => ! empty($webhookConfig['secret']),
+                ];
+                $transaction->update(['trx_data' => $trxData]);
+
+                Log::channel('webhook')->warning('Webhook skipped: missing configuration', [
                     'trx_id' => $transaction->trx_id,
                     'trx_type' => $transaction->trx_type->value,
+                    'attempt_count' => $attemptCount,
                 ]);
 
                 return false;
@@ -224,18 +345,47 @@ class WebhookService
             // Mark webhook as sent
             $transaction->setWebhookCall();
 
-            Log::info('Generic webhook sent successfully', [
+            // Update attempt tracking for success
+            $trxData['webhook_attempts'] = $attemptCount;
+            $trxData['webhook_attempt_history'][] = [
+                'attempt' => $attemptCount,
+                'timestamp' => now()->toIso8601String(),
+                'status' => 'success',
+                'webhook_url' => $webhookConfig['url'],
+            ];
+            $transaction->update(['trx_data' => $trxData]);
+
+            Log::channel('webhook')->info('Generic webhook sent successfully', [
                 'trx_id' => $transaction->trx_id,
                 'trx_type' => $transaction->trx_type->value,
                 'webhook_url' => $webhookConfig['url'],
+                'attempt_count' => $attemptCount,
             ]);
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Generic webhook failed', [
+            // Get webhook config if available (might not be set if exception occurred earlier)
+            $webhookConfig = isset($webhookConfig) ? $webhookConfig : $transaction->getWebhookConfig();
+            
+            // Update attempt tracking for failure
+            $trxData['webhook_attempts'] = $attemptCount;
+            $trxData['webhook_attempt_history'][] = [
+                'attempt' => $attemptCount,
+                'timestamp' => now()->toIso8601String(),
+                'status' => 'failed',
+                'reason' => 'exception',
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ];
+            $transaction->update(['trx_data' => $trxData]);
+
+            Log::channel('webhook')->error('Generic webhook failed', [
                 'trx_id' => $transaction->trx_id,
                 'trx_type' => $transaction->trx_type->value,
+                'attempt_count' => $attemptCount,
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'webhook_url' => $webhookConfig['url'] ?? null,
                 'trace' => $e->getTraceAsString(),
             ]);
 
@@ -432,13 +582,13 @@ class WebhookService
                 ->useSecret($secret)
                 ->dispatch();
 
-            Log::info('Webhook dispatched', [
+            Log::channel('webhook')->info('Webhook dispatched', [
                 'trx_id' => $transaction->trx_id,
                 'url' => $url,
                 'event' => $payload['event'] ?? 'unknown',
             ]);
         } catch (\Exception $e) {
-            Log::error('Webhook dispatch failed', [
+            Log::channel('webhook')->error('Webhook dispatch failed', [
                 'trx_id' => $transaction->trx_id,
                 'url' => $url,
                 'error' => $e->getMessage(),
