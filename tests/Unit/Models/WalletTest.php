@@ -289,4 +289,150 @@ class WalletTest extends TestCase
         $this->assertNotNull($wallet->created_at);
         $this->assertNotNull($wallet->updated_at);
     }
+
+    public function test_wallet_can_increment_balance()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance' => 1000.00,
+            'status' => true,
+        ]);
+
+        $wallet->increment('balance', 250.50);
+
+        $this->assertEquals(1250.50, $wallet->fresh()->balance);
+    }
+
+    public function test_wallet_can_decrement_balance()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance' => 1000.00,
+            'status' => true,
+        ]);
+
+        $wallet->decrement('balance', 250.50);
+
+        $this->assertEquals(749.50, $wallet->fresh()->balance);
+    }
+
+    public function test_wallet_can_increment_balance_sandbox()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance_sandbox' => 500.00,
+            'status' => true,
+        ]);
+
+        $wallet->increment('balance_sandbox', 150.25);
+
+        $this->assertEquals(650.25, $wallet->fresh()->balance_sandbox);
+    }
+
+    public function test_wallet_can_decrement_balance_sandbox()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance_sandbox' => 500.00,
+            'status' => true,
+        ]);
+
+        $wallet->decrement('balance_sandbox', 150.25);
+
+        $this->assertEquals(349.75, $wallet->fresh()->balance_sandbox);
+    }
+
+    public function test_wallet_can_increment_both_balance_and_balance_sandbox_independently()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance' => 1000.00,
+            'balance_sandbox' => 500.00,
+            'status' => true,
+        ]);
+
+        $wallet->increment('balance', 200.00);
+        $wallet->increment('balance_sandbox', 100.00);
+
+        $freshWallet = $wallet->fresh();
+        $this->assertEquals(1200.00, $freshWallet->balance);
+        $this->assertEquals(600.00, $freshWallet->balance_sandbox);
+    }
+
+    public function test_wallet_can_decrement_both_balance_and_balance_sandbox_independently()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance' => 1000.00,
+            'balance_sandbox' => 500.00,
+            'status' => true,
+        ]);
+
+        $wallet->decrement('balance', 200.00);
+        $wallet->decrement('balance_sandbox', 100.00);
+
+        $freshWallet = $wallet->fresh();
+        $this->assertEquals(800.00, $freshWallet->balance);
+        $this->assertEquals(400.00, $freshWallet->balance_sandbox);
+    }
+
+    public function test_wallet_increment_balance_method_uses_floor_rounding()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance' => 1000.00,
+            'status' => true,
+        ]);
+
+        // incrementBalance uses floor() for rounding, so 250.75 becomes 250
+        $wallet->incrementBalance(250.75);
+
+        $this->assertEquals(1250.00, $wallet->fresh()->getActualBalance());
+    }
+
+    public function test_wallet_decrement_balance_method_uses_ceil_rounding()
+    {
+        $user = User::factory()->create();
+
+        $wallet = Wallet::create([
+            'user_id' => $user->id,
+            'currency_id' => 360,
+            'uuid' => 'test-wallet-uuid',
+            'balance' => 1000.00,
+            'status' => true,
+        ]);
+
+        // decrementBalance uses ceil() for rounding, so 250.25 becomes 251
+        $wallet->decrementBalance(250.25);
+
+        $this->assertEquals(749.00, $wallet->fresh()->getActualBalance());
+    }
 }

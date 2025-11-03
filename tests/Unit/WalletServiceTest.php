@@ -7,41 +7,13 @@ namespace Tests\Unit;
 use App\Exceptions\NotifyErrorException;
 use App\Models\Wallet;
 use App\Services\WalletService;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class WalletServiceTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Schema::dropIfExists('wallets');
-
-        if (! Schema::hasTable('wallets')) {
-            Schema::create('wallets', function (Blueprint $table): void {
-                $table->id();
-                $table->unsignedBigInteger('user_id')->nullable();
-                $table->unsignedInteger('currency_id')->nullable();
-                $table->string('uuid')->unique();
-                $table->decimal('balance', 18, 2)->default(0);
-                $table->decimal('balance_sandbox', 18, 2)->default(0);
-                $table->decimal('hold_balance', 18, 2)->default(0);
-                $table->decimal('hold_balance_sandbox', 18, 2)->default(0);
-                $table->boolean('status')->default(true);
-                $table->timestamps();
-            });
-        }
-    }
-
-    protected function tearDown(): void
-    {
-        Schema::dropIfExists('wallets');
-
-        parent::tearDown();
-    }
+    use RefreshDatabase;
 
     public function test_get_wallet_by_uuid_returns_existing_wallet(): void
     {
