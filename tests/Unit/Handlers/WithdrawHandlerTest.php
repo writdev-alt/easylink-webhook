@@ -75,31 +75,25 @@ class WithdrawHandlerTest extends TestCase
     public function test_handle_success_updates_transaction_and_notifies_services(): void
     {
         $trxID = 'TRX-3001';
-        $transaction = new class([
-            'trx_id' => $trxID,
-            'wallet_reference' => 'wallet-xyz',
-            'payable_amount' => 750.0, 
-            'trx_data' => [
-                // Provide top-level reference expected by handler
-                'reference' => 'REF-123',
-            ]
-             ]) extends Transaction
-        {
-            public array $updates = [];
-
-            public function __construct(array $attributes = [])
+        $transaction = new class(['trx_id' => $trxID, 'wallet_reference' => 'wallet-xyz', 'payable_amount' => 750.0, 'trx_data' => [
+            // Provide top-level reference expected by handler
+            'reference' => 'REF-123', ]]) extends Transaction
             {
-                parent::__construct($attributes);
-            }
+                public array $updates = [];
 
-            public function update(array $attributes = [], array $options = [])
-            {
-                $this->updates[] = $attributes;
-                $this->fill($attributes);
+                public function __construct(array $attributes = [])
+                {
+                    parent::__construct($attributes);
+                }
 
-                return true;
-            }
-        };
+                public function update(array $attributes = [], array $options = [])
+                {
+                    $this->updates[] = $attributes;
+                    $this->fill($attributes);
+
+                    return true;
+                }
+            };
 
         // Removed debug dump to allow test to run
 

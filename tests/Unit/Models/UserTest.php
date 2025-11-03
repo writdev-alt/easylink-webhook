@@ -29,7 +29,7 @@ class UserTest extends TestCase
 
     public function test_user_fillable_attributes()
     {
-        $user = new User();
+        $user = new User;
         $expectedFillable = [
             'first_name',
             'last_name',
@@ -55,7 +55,7 @@ class UserTest extends TestCase
 
     public function test_user_hidden_attributes()
     {
-        $user = new User();
+        $user = new User;
         $expectedHidden = [
             'password',
             'remember_token',
@@ -67,7 +67,7 @@ class UserTest extends TestCase
 
     public function test_user_casts()
     {
-        $user = new User();
+        $user = new User;
         $expectedCasts = [
             'id' => 'int',
             'email_verified_at' => 'datetime',

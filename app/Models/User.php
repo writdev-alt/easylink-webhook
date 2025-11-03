@@ -174,6 +174,7 @@ class User extends Authenticatable
         }
 
         $this->fill($attributes);
+
         return $this->save($options);
     }
 }

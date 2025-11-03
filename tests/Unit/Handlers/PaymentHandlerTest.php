@@ -35,7 +35,6 @@ class PaymentHandlerTest extends TestCase
         parent::tearDown();
     }
 
-
     public function test_handle_success_adds_hold_for_receive_payment(): void
     {
         $uuid = (string) Str::uuid();

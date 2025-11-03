@@ -48,7 +48,7 @@ class WebhookCallTest extends TestCase
 
     public function test_webhook_call_fillable_attributes()
     {
-        $webhookCall = new WebhookCall();
+        $webhookCall = new WebhookCall;
         $expectedFillable = [
             'uuid',
             'name',
@@ -66,7 +66,7 @@ class WebhookCallTest extends TestCase
 
     public function test_webhook_call_casts()
     {
-        $webhookCall = new WebhookCall();
+        $webhookCall = new WebhookCall;
         $expectedCasts = [
             'id' => 'int',
             'headers' => 'array',
@@ -79,8 +79,8 @@ class WebhookCallTest extends TestCase
 
     public function test_webhook_call_uses_mysql_site_connection()
     {
-        $webhookCall = new WebhookCall();
-        
+        $webhookCall = new WebhookCall;
+
         $this->assertEquals('mysql_site', $webhookCall->getConnectionName());
     }
 

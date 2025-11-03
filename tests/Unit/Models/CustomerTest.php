@@ -3,7 +3,6 @@
 namespace Tests\Unit\Models;
 
 use App\Models\Customer;
-use App\Models\Transaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -33,7 +32,7 @@ class CustomerTest extends TestCase
 
     public function test_customer_fillable_attributes()
     {
-        $customer = new Customer();
+        $customer = new Customer;
         $expectedFillable = [
             'name',
             'whatsapp',
@@ -48,7 +47,7 @@ class CustomerTest extends TestCase
     public function test_customer_has_transactions_relationship()
     {
         $customer = Customer::factory()->create();
-        
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Relations\HasMany::class,
             $customer->transactions()
@@ -58,7 +57,7 @@ class CustomerTest extends TestCase
     public function test_customer_name_is_required()
     {
         $this->expectException(\Illuminate\Database\QueryException::class);
-        
+
         Customer::create([
             'whatsapp' => '+1234567890',
             'email' => 'test@example.com',

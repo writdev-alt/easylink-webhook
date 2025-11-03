@@ -7,10 +7,10 @@ use App\Enums\MethodType;
 use App\Enums\TrxStatus;
 use App\Enums\TrxType;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property int $id
@@ -116,8 +116,10 @@ class Transaction extends Model
     {
         $casts = parent::getCasts();
         unset($casts['deleted_at']);
+
         return $casts;
     }
+
     /**
      * Static registry to hold live instances keyed by trx_id.
      * Helps ensure consistent instance usage across services and tests.

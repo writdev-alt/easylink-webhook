@@ -7,7 +7,6 @@ use App\Enums\MethodType;
 use App\Enums\TrxStatus;
 use App\Enums\TrxType;
 use App\Models\Customer;
-use App\Models\Merchant;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,7 +20,7 @@ class TransactionTest extends TestCase
     {
         $user = User::factory()->create();
         $customer = Customer::factory()->create();
-        
+
         $transactionData = [
             'user_id' => $user->id,
             'customer_id' => $customer->id,
@@ -74,7 +73,7 @@ class TransactionTest extends TestCase
 
     public function test_transaction_fillable_attributes()
     {
-        $transaction = new Transaction();
+        $transaction = new Transaction;
         $expectedFillable = [
             'merchant_aggregator_store_nmid',
             'merchant_id',
@@ -112,7 +111,7 @@ class TransactionTest extends TestCase
 
     public function test_transaction_casts()
     {
-        $transaction = new Transaction();
+        $transaction = new Transaction;
         $expectedCasts = [
             'id' => 'int',
             'trx_type' => TrxType::class,
@@ -128,8 +127,8 @@ class TransactionTest extends TestCase
 
     public function test_transaction_belongs_to_user()
     {
-        $transaction = new Transaction();
-        
+        $transaction = new Transaction;
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Relations\BelongsTo::class,
             $transaction->user()
@@ -138,8 +137,8 @@ class TransactionTest extends TestCase
 
     public function test_transaction_belongs_to_customer()
     {
-        $transaction = new Transaction();
-        
+        $transaction = new Transaction;
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Relations\BelongsTo::class,
             $transaction->customer()
@@ -148,8 +147,8 @@ class TransactionTest extends TestCase
 
     public function test_transaction_belongs_to_merchant()
     {
-        $transaction = new Transaction();
-        
+        $transaction = new Transaction;
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Relations\BelongsTo::class,
             $transaction->merchant()
@@ -158,8 +157,8 @@ class TransactionTest extends TestCase
 
     public function test_transaction_morph_to_method()
     {
-        $transaction = new Transaction();
-        
+        $transaction = new Transaction;
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Relations\MorphTo::class,
             $transaction->method()
@@ -169,7 +168,7 @@ class TransactionTest extends TestCase
     public function test_transaction_trx_id_must_be_unique()
     {
         $user = User::factory()->create();
-        
+
         Transaction::create([
             'user_id' => $user->id,
             'trx_id' => 'UNIQUE_TXN_123',
@@ -198,7 +197,7 @@ class TransactionTest extends TestCase
     public function test_transaction_status_defaults_to_pending()
     {
         $user = User::factory()->create();
-        
+
         $transaction = Transaction::create([
             'user_id' => $user->id,
             'trx_id' => 'TXN_DEFAULT_STATUS',
@@ -215,7 +214,7 @@ class TransactionTest extends TestCase
     public function test_transaction_can_store_json_data()
     {
         $user = User::factory()->create();
-        
+
         $trxData = [
             'gateway' => 'easylink',
             'reference_id' => 'EL123456',
@@ -246,7 +245,7 @@ class TransactionTest extends TestCase
     public function test_transaction_can_be_updated()
     {
         $user = User::factory()->create();
-        
+
         $transaction = Transaction::create([
             'user_id' => $user->id,
             'trx_id' => 'TXN_UPDATE_TEST',
@@ -272,7 +271,7 @@ class TransactionTest extends TestCase
     public function test_transaction_soft_deletes()
     {
         $user = User::factory()->create();
-        
+
         $transaction = Transaction::create([
             'user_id' => $user->id,
             'trx_id' => 'TXN_SOFT_DELETE',
@@ -289,7 +288,7 @@ class TransactionTest extends TestCase
 
         // Should not find the transaction in normal queries
         $this->assertNull(Transaction::find($transactionId));
-        
+
         // Should find the transaction when including trashed
         $this->assertNotNull(Transaction::withTrashed()->find($transactionId));
     }
@@ -297,7 +296,7 @@ class TransactionTest extends TestCase
     public function test_transaction_timestamps_are_set()
     {
         $user = User::factory()->create();
-        
+
         $transaction = Transaction::create([
             'user_id' => $user->id,
             'trx_id' => 'TXN_TIMESTAMPS',
@@ -316,7 +315,7 @@ class TransactionTest extends TestCase
     public function test_transaction_enum_values()
     {
         $user = User::factory()->create();
-        
+
         // Test different transaction types
         $depositTransaction = Transaction::create([
             'user_id' => $user->id,

@@ -11,7 +11,6 @@ use Tests\TestCase;
 
 class MerchantTest extends TestCase
 {
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -28,7 +27,7 @@ class MerchantTest extends TestCase
     public function test_merchant_can_be_created_with_required_attributes()
     {
         $user = User::factory()->create();
-        
+
         $merchantData = [
             'user_id' => $user->id,
             'business_name' => 'Test Business',
@@ -55,7 +54,7 @@ class MerchantTest extends TestCase
 
     public function test_merchant_fillable_attributes()
     {
-        $merchant = new Merchant();
+        $merchant = new Merchant;
         $expectedFillable = [
             'user_id',
             'business_name',
@@ -80,7 +79,7 @@ class MerchantTest extends TestCase
 
     public function test_merchant_casts()
     {
-        $merchant = new Merchant();
+        $merchant = new Merchant;
         $expectedCasts = [
             'id' => 'int',
             'ma_fee' => 'float',
@@ -207,7 +206,7 @@ class MerchantTest extends TestCase
     public function test_merchant_can_be_created_with_optional_attributes()
     {
         $user = User::factory()->create();
-        
+
         $merchantData = [
             'user_id' => $user->id,
             'business_name' => 'Complete Business',

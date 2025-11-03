@@ -9,27 +9,28 @@ use App\Payment\Netzme\NetzmePaymentGateway;
 use App\Payment\PaymentGateway;
 use App\Services\TransactionService;
 use App\Services\WebhookService;
-use Illuminate\Http\Request;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
 
 class NetzmePaymentGatewayTest extends TestCase
 {
-
     private NetzmePaymentGateway $gateway;
+
     private TransactionService $mockTransactionService;
+
     private WebhookService $mockWebhookService;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->gateway = new NetzmePaymentGateway();
+        $this->gateway = new NetzmePaymentGateway;
         $this->mockTransactionService = Mockery::mock(TransactionService::class);
         $this->mockWebhookService = Mockery::mock(WebhookService::class);
-        
+
         $this->app->instance(TransactionService::class, $this->mockTransactionService);
         $this->app->instance(WebhookService::class, $this->mockWebhookService);
 
@@ -107,7 +108,7 @@ class NetzmePaymentGatewayTest extends TestCase
         $result = $this->gateway->handleIPN($request);
 
         $this->assertTrue($result);
-        
+
         $transaction->refresh();
         $this->assertArrayHasKey('netzme_ipn_response', $transaction->trx_data);
         $this->assertEquals($requestData, $transaction->trx_data['netzme_ipn_response']);
@@ -349,7 +350,7 @@ class NetzmePaymentGatewayTest extends TestCase
         $result = $this->gateway->handleIPN($request);
 
         $this->assertTrue($result);
-        
+
         $transaction->refresh();
         $this->assertIsArray($transaction->trx_data);
         $this->assertArrayHasKey('netzme_ipn_response', $transaction->trx_data);
@@ -358,7 +359,7 @@ class NetzmePaymentGatewayTest extends TestCase
     public function test_handle_ipn_method_exists_and_is_public()
     {
         $this->assertTrue(method_exists($this->gateway, 'handleIPN'));
-        
+
         $reflection = new \ReflectionMethod($this->gateway, 'handleIPN');
         $this->assertTrue($reflection->isPublic());
     }

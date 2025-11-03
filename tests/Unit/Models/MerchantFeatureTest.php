@@ -11,7 +11,6 @@ use Tests\TestCase;
 
 class MerchantFeatureTest extends TestCase
 {
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,7 +32,7 @@ class MerchantFeatureTest extends TestCase
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
-        
+
         $featureData = [
             'merchant_id' => $merchant->id,
             'feature' => 'webhooks_enabled',
@@ -58,7 +57,7 @@ class MerchantFeatureTest extends TestCase
 
     public function test_merchant_feature_fillable_attributes()
     {
-        $feature = new MerchantFeature();
+        $feature = new MerchantFeature;
         $expectedFillable = [
             'merchant_id',
             'feature',
@@ -75,7 +74,7 @@ class MerchantFeatureTest extends TestCase
 
     public function test_merchant_feature_casts()
     {
-        $feature = new MerchantFeature();
+        $feature = new MerchantFeature;
         $expectedCasts = [
             'id' => 'int',
             'status' => 'boolean',
@@ -237,7 +236,7 @@ class MerchantFeatureTest extends TestCase
             'business_name' => 'Biz2',
             'currency_id' => 1,
         ]);
-        
+
         $feature1 = MerchantFeature::create(['merchant_id' => $merchant1->id, 'sort_order' => 2, 'feature' => 'a']);
         $feature2 = MerchantFeature::create(['merchant_id' => $merchant1->id, 'sort_order' => 1, 'feature' => 'b']);
         $feature3 = MerchantFeature::create(['merchant_id' => $merchant2->id, 'feature' => 'c']);
@@ -271,7 +270,7 @@ class MerchantFeatureTest extends TestCase
         $enabledFeatures = MerchantFeature::enabled()->get();
 
         $this->assertCount(2, $enabledFeatures);
-        $this->assertTrue($enabledFeatures->every(fn($feature) => $feature->status === true));
+        $this->assertTrue($enabledFeatures->every(fn ($feature) => $feature->status === true));
     }
 
     public function test_is_enabled_returns_dynamic_status()

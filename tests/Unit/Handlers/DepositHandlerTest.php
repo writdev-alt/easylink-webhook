@@ -35,7 +35,7 @@ class DepositHandlerTest extends TestCase
         ]);
 
         $wallet = Mockery::mock(Wallet::class);
-        
+
         $walletServiceMock = Mockery::mock(WalletService::class);
         $walletServiceMock->shouldReceive('addMoneyByWalletUuid')
             ->once()

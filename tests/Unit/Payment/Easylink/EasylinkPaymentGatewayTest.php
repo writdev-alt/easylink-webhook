@@ -8,16 +8,15 @@ use App\Models\Transaction;
 use App\Payment\Easylink\EasylinkPaymentGateway;
 use App\Payment\Easylink\Enums\TransferState;
 use App\Services\TransactionService;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Artisan;
 use Mockery;
 use Tests\TestCase;
 
 class EasylinkPaymentGatewayTest extends TestCase
 {
-
     private EasylinkPaymentGateway $gateway;
+
     private TransactionService $mockTransactionService;
 
     protected function setUp(): void
@@ -25,7 +24,7 @@ class EasylinkPaymentGatewayTest extends TestCase
         parent::setUp();
         // Apply migrations to ensure transactions schema comes from migration
         Artisan::call('migrate:fresh');
-        $this->gateway = new EasylinkPaymentGateway();
+        $this->gateway = new EasylinkPaymentGateway;
         $this->mockTransactionService = Mockery::mock(TransactionService::class);
         $this->app->instance(TransactionService::class, $this->mockTransactionService);
     }
@@ -72,7 +71,7 @@ class EasylinkPaymentGatewayTest extends TestCase
         $result = $this->gateway->handleDisbursment($request);
 
         $this->assertTrue($result);
-        
+
         $transaction->refresh();
         $this->assertArrayHasKey('easylink_settlement', $transaction->trx_data);
         $this->assertEquals($request->toArray(), $transaction->trx_data['easylink_settlement']);
@@ -195,7 +194,7 @@ class EasylinkPaymentGatewayTest extends TestCase
         $result = $this->gateway->handleTopup($request);
 
         $this->assertTrue($result);
-        
+
         $transaction->refresh();
         $this->assertArrayHasKey('easylink_topup', $transaction->trx_data);
         $this->assertEquals($request->all(), $transaction->trx_data['easylink_topup']);

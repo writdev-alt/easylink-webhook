@@ -4,7 +4,6 @@ namespace Tests\Unit\Models;
 
 use App\Models\User;
 use App\Models\Wallet;
-use App\Models\Transaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +14,7 @@ class WalletTest extends TestCase
     public function test_wallet_can_be_created_with_required_attributes()
     {
         $user = User::factory()->create();
-        
+
         $walletData = [
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -42,7 +41,7 @@ class WalletTest extends TestCase
 
     public function test_wallet_fillable_attributes()
     {
-        $wallet = new Wallet();
+        $wallet = new Wallet;
         $expectedFillable = [
             'user_id',
             'currency_id',
@@ -59,7 +58,7 @@ class WalletTest extends TestCase
 
     public function test_wallet_casts()
     {
-        $wallet = new Wallet();
+        $wallet = new Wallet;
         $expectedCasts = [
             'id' => 'int',
             'balance' => 'float',
@@ -74,8 +73,8 @@ class WalletTest extends TestCase
 
     public function test_wallet_belongs_to_user()
     {
-        $wallet = new Wallet();
-        
+        $wallet = new Wallet;
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Relations\BelongsTo::class,
             $wallet->user()
@@ -84,8 +83,8 @@ class WalletTest extends TestCase
 
     public function test_wallet_has_many_transactions()
     {
-        $wallet = new Wallet();
-        
+        $wallet = new Wallet;
+
         $this->assertInstanceOf(
             \Illuminate\Database\Eloquent\Relations\HasMany::class,
             $wallet->transactions()
@@ -95,7 +94,7 @@ class WalletTest extends TestCase
     public function test_wallet_get_actual_balance_method()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -109,7 +108,7 @@ class WalletTest extends TestCase
 
         // Test production balance (default)
         $this->assertEquals(1000.00, $wallet->getActualBalance());
-        
+
         // Test sandbox balance
         $this->assertEquals(500.00, $wallet->getActualBalance(true));
     }
@@ -117,7 +116,7 @@ class WalletTest extends TestCase
     public function test_wallet_get_actual_hold_balance_method()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -131,7 +130,7 @@ class WalletTest extends TestCase
 
         // Test production hold balance (default)
         $this->assertEquals(100.00, $wallet->getActualHoldBalance());
-        
+
         // Test sandbox hold balance
         $this->assertEquals(50.00, $wallet->getActualHoldBalance(true));
     }
@@ -139,7 +138,7 @@ class WalletTest extends TestCase
     public function test_wallet_get_available_balance_method()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -153,7 +152,7 @@ class WalletTest extends TestCase
 
         // Test production available balance (balance - hold_balance)
         $this->assertEquals(900.00, $wallet->getAvailableBalance());
-        
+
         // Test sandbox available balance
         $this->assertEquals(450.00, $wallet->getAvailableBalance(true));
     }
@@ -161,7 +160,7 @@ class WalletTest extends TestCase
     public function test_wallet_total_balance_accessor()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -180,7 +179,7 @@ class WalletTest extends TestCase
     public function test_wallet_currency_role_accessors()
     {
         $user = User::factory()->create();
-        
+
         // Test with different currency IDs to check role accessors
         $paymentWallet = Wallet::create([
             'user_id' => $user->id,
@@ -203,7 +202,7 @@ class WalletTest extends TestCase
     {
         $user1 = User::factory()->create();
         $user2 = User::factory()->create();
-        
+
         Wallet::create([
             'user_id' => $user1->id,
             'currency_id' => 360,
@@ -226,7 +225,7 @@ class WalletTest extends TestCase
     public function test_wallet_balance_defaults_to_zero()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -243,7 +242,7 @@ class WalletTest extends TestCase
     public function test_wallet_status_defaults_to_true()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -256,7 +255,7 @@ class WalletTest extends TestCase
     public function test_wallet_can_be_updated()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,
@@ -279,7 +278,7 @@ class WalletTest extends TestCase
     public function test_wallet_timestamps_are_set()
     {
         $user = User::factory()->create();
-        
+
         $wallet = Wallet::create([
             'user_id' => $user->id,
             'currency_id' => 360,

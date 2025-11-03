@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Enums\MerchantStatus;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id

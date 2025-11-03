@@ -235,6 +235,7 @@ class Wallet extends Model
     public function getHoldBalanceFieldName(bool $sandbox = false): string
     {
         $isSandbox = $sandbox || config('app.mode') === 'sandbox';
+
         return $isSandbox ? 'hold_balance_sandbox' : 'hold_balance';
     }
 
@@ -294,6 +295,7 @@ class Wallet extends Model
     public function getBalanceFieldName(bool $sandbox = false): string
     {
         $isSandbox = $sandbox || config('app.mode') === 'sandbox';
+
         return $isSandbox ? 'balance_sandbox' : 'balance';
     }
 

@@ -18,7 +18,7 @@ class PaymentGatewayFactoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->factory = new PaymentGatewayFactory();
+        $this->factory = new PaymentGatewayFactory;
     }
 
     public function test_factory_can_create_netzme_gateway()
@@ -107,10 +107,10 @@ class PaymentGatewayFactoryTest extends TestCase
     public function test_factory_get_gateway_method_signature()
     {
         $reflection = new \ReflectionMethod($this->factory, 'getGateway');
-        
+
         $this->assertTrue($reflection->isPublic());
         $this->assertCount(1, $reflection->getParameters());
-        
+
         $parameter = $reflection->getParameters()[0];
         $this->assertEquals('gatewayCode', $parameter->getName());
         $this->assertEquals('string', $parameter->getType()->getName());

@@ -52,7 +52,7 @@ class WebhookService
         if ($transaction->alreadySentAutomaticWebhook()) {
             $trxData = $transaction->trx_data ?? [];
             $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
-            
+
             // Update attempt count
             $trxData['webhook_attempts'] = $attemptCount;
             $trxData['webhook_attempt_history'][] = [
@@ -98,7 +98,7 @@ class WebhookService
     {
         $trxData = $transaction->trx_data ?? [];
         $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
-        
+
         try {
             $webhookConfig = $transaction->getWebhookConfig();
 
@@ -160,7 +160,7 @@ class WebhookService
         } catch (\Exception $e) {
             // Get webhook config if available (might not be set if exception occurred earlier)
             $webhookConfig = $webhookConfig ?? $transaction->getWebhookConfig();
-            
+
             // Update attempt tracking for failure
             $trxData['webhook_attempts'] = $attemptCount;
             $trxData['webhook_attempt_history'][] = [
@@ -203,7 +203,7 @@ class WebhookService
     {
         $trxData = $transaction->trx_data ?? [];
         $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
-        
+
         try {
             $webhookConfig = $transaction->getWebhookConfig();
 
@@ -265,7 +265,7 @@ class WebhookService
         } catch (\Exception $e) {
             // Get webhook config if available (might not be set if exception occurred earlier)
             $webhookConfig = isset($webhookConfig) ? $webhookConfig : $transaction->getWebhookConfig();
-            
+
             // Update attempt tracking for failure
             $trxData['webhook_attempts'] = $attemptCount;
             $trxData['webhook_attempt_history'][] = [
@@ -305,7 +305,7 @@ class WebhookService
     {
         $trxData = $transaction->trx_data ?? [];
         $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
-        
+
         try {
             $webhookConfig = $transaction->getWebhookConfig();
 
@@ -366,7 +366,7 @@ class WebhookService
         } catch (\Exception $e) {
             // Get webhook config if available (might not be set if exception occurred earlier)
             $webhookConfig = isset($webhookConfig) ? $webhookConfig : $transaction->getWebhookConfig();
-            
+
             // Update attempt tracking for failure
             $trxData['webhook_attempts'] = $attemptCount;
             $trxData['webhook_attempt_history'][] = [
