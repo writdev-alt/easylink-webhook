@@ -150,20 +150,6 @@ class Wallet extends Model
         return (float) ($this->attributes[$fieldName] ?? 0);
     }
 
-    /**
-     * Get available balance (balance - hold balance).
-     */
-    public function getAvailableBalance(bool $sandbox = false): float
-    {
-        return $this->getActualBalance($sandbox) - $this->getActualHoldBalance($sandbox);
-    }
-
-    protected function totalBalance(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->getActualBalance() + $this->getActualHoldBalance(),
-        );
-    }
 
     /**
      * Add funds to hold balance.

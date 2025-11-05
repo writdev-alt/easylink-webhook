@@ -153,22 +153,13 @@ class WalletService
             );
         }
 
-        // Enforce available balance (exclude hold funds)
-        if (method_exists($wallet, 'getAvailableBalance')) {
-            if ($wallet->getAvailableBalance() < $amount) {
-                throw NotifyErrorException::error(
-                    __('Insufficient available balance. Some funds are on hold.'),
-                    status: HttpResponse::HTTP_BAD_REQUEST,
-                );
-            }
-        } else {
+
             if ($wallet->balance < $amount) {
                 throw NotifyErrorException::error(
                     __('Insufficient balance in wallet.'),
                     status: HttpResponse::HTTP_BAD_REQUEST,
                 );
             }
-        }
 
         $wallet->decrementBalance($amount);
 
