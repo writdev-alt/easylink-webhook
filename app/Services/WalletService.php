@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Exceptions\NotifyErrorException;
 use App\Models\User;
 use App\Models\Wallet as WalletModel;
-use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 /**
  * WalletService
@@ -30,7 +28,7 @@ class WalletService
      * @param  string  $uuid  The wallet's unique UUID
      * @return WalletModel The wallet model
      *
-     * @throws NotifyErrorException When wallet is not found
+     * @throws \Exception When wallet is not found
      *
      * @example
      * $wallet = $walletService->getWalletByUuId('1234567890123456');
@@ -40,10 +38,8 @@ class WalletService
         $wallet = WalletModel::where('uuid', $uuid)->first();
 
         if (! $wallet) {
-            throw NotifyErrorException::error(
+            throw new \Exception(
                 __('Wallet with ID :id not found.', ['id' => $uuid]),
-                context: ['wallet_uuid' => $uuid],
-                status: HttpResponse::HTTP_NOT_FOUND,
             );
         }
 
@@ -60,12 +56,12 @@ class WalletService
      * @param  float  $amount  The amount to add
      * @return WalletModel The updated wallet model
      *
-     * @throws NotifyErrorException When amount is invalid or wallet not found
+     * @throws \Exception When amount is invalid or wallet not found
      *
      * @example
      * $wallet = $walletService->addMoneyByWalletUuid('1234567890123456', 100000);
      */
-    public function addMoneyByWalletUuid(string $walletUuid, float $amount): WalletModel
+    public function addMoneyByWalletUuid(string $walletUuid, float|int $amount): WalletModel
     {
         $wallet = $this->getWalletByUuId($walletUuid);
 
@@ -82,17 +78,16 @@ class WalletService
      * @param  float  $amount  The amount to add
      * @return WalletModel The updated wallet model
      *
-     * @throws NotifyErrorException When amount is invalid
+     * @throws \Exception When amount is invalid
      *
      * @example
      * $wallet = $walletService->addMoney($wallet, 50000);
      */
-    public function addMoney(WalletModel $wallet, float $amount): WalletModel
+    public function addMoney(WalletModel $wallet, float|int $amount): WalletModel
     {
         if ($amount <= 0) {
-            throw NotifyErrorException::warning(
+            throw new \Exception(
                 __('Amount must be greater than zero.'),
-                status: HttpResponse::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
         if (config('app.mode') === 'sandbox') {
@@ -114,12 +109,12 @@ class WalletService
      * @param  float  $amount  The amount to subtract
      * @return WalletModel The updated wallet model
      *
-     * @throws NotifyErrorException When amount is invalid or insufficient balance
+     * @throws \Exception When amount is invalid or insufficient balance
      *
      * @example
      * $wallet = $walletService->subtractMoneyByWalletUuid('1234567890123456', 25000);
      */
-    public function subtractMoneyByWalletUuid(string $walletUuid, float $amount): WalletModel
+    public function subtractMoneyByWalletUuid(string $walletUuid, float|int $amount): WalletModel
     {
         $wallet = $this->getWalletByUuId($walletUuid);
 
@@ -136,27 +131,25 @@ class WalletService
      * @param  float  $amount  The amount to subtract
      * @return WalletModel The updated wallet model
      *
-     * @throws NotifyErrorException When amount is invalid or insufficient balance
+     * @throws \Exception When amount is invalid or insufficient balance
      *
      * @example
      * $wallet = $walletService->subtractMoney($wallet, 30000);
      */
-    public function subtractMoney(WalletModel $wallet, float $amount): WalletModel
+    public function subtractMoney(WalletModel $wallet, float|int $amount): WalletModel
     {
         if (config('app.env') === 'local') {
             return $wallet;
         }
         if ($amount <= 0) {
-            throw NotifyErrorException::warning(
+            throw new \Exception(
                 __('Amount must be greater than zero.'),
-                status: HttpResponse::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
 
         if ($wallet->balance < $amount) {
-            throw NotifyErrorException::error(
+            throw new \Exception(
                 __('Insufficient balance in wallet.'),
-                status: HttpResponse::HTTP_BAD_REQUEST,
             );
         }
 

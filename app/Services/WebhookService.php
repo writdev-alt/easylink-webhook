@@ -643,7 +643,7 @@ class WebhookService
                 'headers' => [
                     'Content-Type' => 'application/json',
                     'X-Signature' => $signature,
-                    'User-Agent' => 'WRPay-Webhook/1.0',
+                    'User-Agent' => 'Webhook/1.0',
                 ],
                 'body' => json_encode($payload),
             ]);
