@@ -139,105 +139,6 @@ class Wallet extends Model
         return optional($this->currency)->hasRole($role) ?? false;
     }
 
-    /**
-     * Get the is sender attribute for the wallet.
-     */
-    public function getIsSenderAttribute(): bool
-    {
-        return $this->hasCurrencyRole(CurrencyRole::SENDER);
-    }
-
-    /**
-     * Get the is request money attribute for the wallet.
-     */
-    public function getIsRequestMoneyAttribute(): bool
-    {
-        return $this->hasCurrencyRole(CurrencyRole::REQUEST_MONEY);
-    }
-
-    /**
-     * Get the is payment attribute for the wallet.
-     */
-    public function getIsPaymentAttribute(): bool
-    {
-        return $this->hasCurrencyRole(CurrencyRole::PAYMENT);
-    }
-
-    /**
-     * Get the is receiver attribute for the wallet.
-     */
-    public function getIsReceiverAttribute(): bool
-    {
-        return $this->hasCurrencyRole(CurrencyRole::RECEIVER);
-    }
-
-    /**
-     * Get the is withdraw attribute for the wallet.
-     */
-    public function getIsWithdrawAttribute(): bool
-    {
-        return $this->hasCurrencyRole(CurrencyRole::WITHDRAW);
-    }
-
-    /**
-     * Get the balance attribute based on app mode.
-     * In sandbox mode, returns balance_sandbox, otherwise returns balance.
-     */
-    public function getBalanceAttribute($value)
-    {
-        if (config('app.mode') === 'sandbox') {
-            return $this->attributes['balance_sandbox'] ?? 0;
-        }
-
-        return $value;
-    }
-
-    /**
-     * Set the balance attribute based on app mode.
-     * In sandbox mode, updates balance_sandbox, otherwise updates balance.
-     */
-    public function setBalanceAttribute($value)
-    {
-        if (config('app.mode') === 'sandbox') {
-            $this->attributes['balance_sandbox'] = $value;
-        } else {
-            $this->attributes['balance'] = $value;
-        }
-    }
-
-    /**
-     * Get the hold balance attribute based on app mode.
-     */
-    public function getHoldBalanceAttribute($value)
-    {
-        if (config('app.mode') === 'sandbox') {
-            return $this->attributes['hold_balance_sandbox'] ?? 0;
-        }
-
-        return $value ?? 0;
-    }
-
-    /**
-     * Set the hold balance attribute based on app mode.
-     */
-    public function setHoldBalanceAttribute($value)
-    {
-        if (config('app.mode') === 'sandbox') {
-            $this->attributes['hold_balance_sandbox'] = $value;
-        } else {
-            $this->attributes['hold_balance'] = $value;
-        }
-    }
-
-    /**
-     * Get the hold balance field name based on app mode.
-     */
-    public function getHoldBalanceFieldName(bool $sandbox = false): string
-    {
-        $isSandbox = $sandbox || config('app.mode') === 'sandbox';
-
-        return $isSandbox ? 'hold_balance_sandbox' : 'hold_balance';
-    }
 
     /**
      * Get the actual hold balance value based on app mode.
@@ -269,9 +170,9 @@ class Wallet extends Model
      */
     public function addToHoldBalance(float $amount): bool
     {
-        $fieldName = $this->getHoldBalanceFieldName();
+        $fieldName = config('app.mode') === 'sandbox' ? 'hold_balance_sandbox' : 'hold_balance';
 
-        return $this->increment($fieldName, $amount);
+        return $this->increment('hold_balance', $amount);
     }
 
     /**

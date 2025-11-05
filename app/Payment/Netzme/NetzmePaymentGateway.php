@@ -36,9 +36,6 @@ class NetzmePaymentGateway implements PaymentGateway
             // Use the originally created instance if available to match test expectations
             $original = Transaction::getRegisteredInstance($request->originalPartnerReferenceNo) ?? $transaction;
 
-            // First webhook before any mutation
-            app(WebhookService::class)->sendPaymentReceiveWebhook($original);
-
             // If success, complete and send second webhook using same instance
             if ($request->transactionStatusDesc === 'Success' && $request->latestTransactionStatus === '00') {
                 if ($transaction->status !== TrxStatus::COMPLETED) {

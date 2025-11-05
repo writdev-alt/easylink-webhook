@@ -12,10 +12,9 @@ use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Payment\PaymentGatewayFactory;
 use App\Services\TransactionService;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -25,45 +24,17 @@ use Tests\TestCase;
 class IPNControllerTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
+    use RefreshDatabase;
 
     private array $payload;
 
     private array $pendingPayload;
 
+    private array $easylinkPayloads = [];
+
     protected function setUp(): void
     {
         parent::setUp();
-
-        Schema::dropIfExists('transactions');
-        Schema::dropIfExists('wallets');
-
-        Schema::create('wallets', function (Blueprint $table): void {
-            $table->id();
-            $table->unsignedBigInteger('user_id')->nullable();
-            $table->unsignedInteger('currency_id')->nullable();
-            $table->string('uuid')->unique();
-            $table->decimal('balance', 18, 2)->default(0);
-            $table->decimal('balance_sandbox', 18, 2)->default(0);
-            $table->decimal('hold_balance', 18, 2)->default(0);
-            $table->decimal('hold_balance_sandbox', 18, 2)->default(0);
-            $table->boolean('status')->default(true);
-            $table->timestamps();
-        });
-
-        Schema::create('transactions', function (Blueprint $table): void {
-            $table->id();
-            $table->string('trx_id')->unique();
-            $table->string('trx_type');
-            $table->string('status')->default(TrxStatus::PENDING->value);
-            $table->decimal('net_amount', 18, 2)->default(0);
-            $table->decimal('trx_fee', 18, 2)->default(0);
-            $table->string('wallet_reference')->nullable();
-            $table->string('remarks')->nullable();
-            $table->string('description')->nullable();
-            $table->json('trx_data')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
 
         $this->payload = json_decode(
             (string) file_get_contents(base_path('tests/mockups/netzme/success.json')),
@@ -78,14 +49,27 @@ class IPNControllerTest extends TestCase
             512,
             JSON_THROW_ON_ERROR
         );
-    }
 
-    protected function tearDown(): void
-    {
-        Schema::dropIfExists('transactions');
-        Schema::dropIfExists('wallets');
-
-        parent::tearDown();
+        // Load all easylink transfer state payloads
+        $easylinkStates = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 26, 27];
+        foreach ($easylinkStates as $state) {
+            $filename = match ($state) {
+                10 => 'transfer-state-10-refund_success.json',
+                26 => 'transfer-state-26-processing_bank_partner.json',
+                27 => 'transfer-state-27-remind_recipient.json',
+                default => "transfer-state-0{$state}.json",
+            };
+            
+            $filePath = base_path("tests/mockups/easylink/{$filename}");
+            if (file_exists($filePath)) {
+                $this->easylinkPayloads[$state] = json_decode(
+                    (string) file_get_contents($filePath),
+                    true,
+                    512,
+                    JSON_THROW_ON_ERROR
+                );
+            }
+        }
     }
 
     public function test_handle_ipn_returns_error_for_unsupported_gateway(): void
@@ -302,6 +286,276 @@ class IPNControllerTest extends TestCase
         $this->assertSame(TrxStatus::PENDING, $transaction->fresh()->status);
     }
 
+    public function test_handle_ipn_easylink_withdraw_complete_updates_wallet_balance(): void
+    {
+        Event::fake([WebhookReceived::class]);
+
+        $initialBalance = 5000.0;
+        $payload = $this->easylinkPayloads[7]; // State 7: COMPLETE
+        $withdrawAmount = (float) $payload['source_amount'];
+        $fee = (float) $payload['fee'];
+        $payableAmount = $withdrawAmount + $fee; // Total amount to deduct from wallet
+
+        $wallet = Wallet::create([
+            'uuid' => 'wallet-easylink-test-uuid',
+            'user_id' => null,
+            'currency_id' => 360,
+            'balance' => $initialBalance,
+            'balance_sandbox' => 0,
+            'hold_balance' => 0,
+            'hold_balance_sandbox' => 0,
+            'status' => true,
+        ])->refresh();
+
+        $transaction = Transaction::create([
+            'trx_id' => $payload['reference_id'],
+            'trx_type' => TrxType::WITHDRAW,
+            'status' => TrxStatus::PENDING,
+            'net_amount' => (int) $payableAmount,
+            'payable_amount' => $payableAmount,
+            'wallet_reference' => $wallet->uuid,
+            'currency' => 'IDR',
+        ])->refresh();
+
+        $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');
+
+        $controller = app(IPNController::class);
+
+        $response = $controller->handleIPN($request, 'easylink', 'disbursment');
+
+        $this->assertSame(200, $response->status());
+        $this->assertSame([
+            'status' => 'success',
+            'message' => 'Webhook received',
+        ], $response->getData(true));
+
+        $this->assertSame(TrxStatus::COMPLETED, $transaction->fresh()->status);
+        $this->assertSame($initialBalance - $payableAmount, $wallet->fresh()->getActualBalance());
+
+        Event::assertDispatched(WebhookReceived::class, function (WebhookReceived $event) use ($request): bool {
+            $this->assertSame('easylink', $event->gateway);
+            $this->assertSame('disbursment', $event->action);
+            $this->assertSame($request->fullUrl(), $event->url);
+
+            return true;
+        });
+    }
+
+    /**
+     * Test helper for easylink withdraw states that don't change transaction status
+     */
+    private function testEasylinkWithdrawState(int $state, string $stateName, bool $expectStatusChange = false, ?TrxStatus $expectedStatus = null): void
+    {
+        Event::fake([WebhookReceived::class]);
+
+        if (!isset($this->easylinkPayloads[$state])) {
+            $this->markTestSkipped("Easylink state {$state} payload not available");
+        }
+
+        $payload = $this->easylinkPayloads[$state];
+        $initialBalance = 5000.0;
+        $withdrawAmount = (float) $payload['source_amount'];
+        $fee = (float) $payload['fee'];
+        $payableAmount = $withdrawAmount + $fee;
+
+        $wallet = Wallet::create([
+            'uuid' => "wallet-easylink-state-{$state}",
+            'user_id' => null,
+            'currency_id' => 360,
+            'balance' => $initialBalance,
+            'balance_sandbox' => 0,
+            'hold_balance' => 0,
+            'hold_balance_sandbox' => 0,
+            'status' => true,
+        ])->refresh();
+
+        $transaction = Transaction::create([
+            'trx_id' => $payload['reference_id'],
+            'trx_type' => TrxType::WITHDRAW,
+            'status' => TrxStatus::PENDING,
+            'net_amount' => (int) $payableAmount,
+            'payable_amount' => $payableAmount,
+            'wallet_reference' => $wallet->uuid,
+            'currency' => 'IDR',
+        ])->refresh();
+
+        $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');
+        $controller = app(IPNController::class);
+
+        $response = $controller->handleIPN($request, 'easylink', 'disbursment');
+
+        // Gateway returns false for states that don't trigger status changes, but still updates transaction data
+        $expectsSuccess = $expectStatusChange;
+        
+        if ($expectsSuccess) {
+            $this->assertSame(200, $response->status());
+            $this->assertSame([
+                'status' => 'success',
+                'message' => 'Webhook received',
+            ], $response->getData(true));
+        } else {
+            // States that don't change status return false, so response is 400 but still processed
+            $this->assertSame(400, $response->status());
+            $this->assertSame([
+                'status' => 'failed',
+                'message' => 'Webhook received',
+            ], $response->getData(true));
+        }
+
+        // Verify transaction data is updated
+        $transaction->refresh();
+        $this->assertArrayHasKey('easylink_settlement', $transaction->trx_data);
+
+        if ($expectStatusChange && $expectedStatus) {
+            $this->assertSame($expectedStatus, $transaction->status);
+        } else {
+            $this->assertSame(TrxStatus::PENDING, $transaction->status);
+        }
+
+        Event::assertDispatched(WebhookReceived::class, function (WebhookReceived $event) use ($request): bool {
+            $this->assertSame('easylink', $event->gateway);
+            $this->assertSame('disbursment', $event->action);
+            return true;
+        });
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_01_create(): void
+    {
+        $this->testEasylinkWithdrawState(1, 'CREATE');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_02_confirm(): void
+    {
+        $this->testEasylinkWithdrawState(2, 'CONFIRM');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_03_hold(): void
+    {
+        $this->testEasylinkWithdrawState(3, 'HOLD');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_04_review(): void
+    {
+        $this->testEasylinkWithdrawState(4, 'REVIEW');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_05_payout(): void
+    {
+        $this->testEasylinkWithdrawState(5, 'PAYOUT');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_06_sent(): void
+    {
+        $this->testEasylinkWithdrawState(6, 'SENT');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_08_canceled(): void
+    {
+        $this->testEasylinkWithdrawState(8, 'CANCELED');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_09_failed(): void
+    {
+        Event::fake([WebhookReceived::class]);
+
+        $payload = $this->easylinkPayloads[9]; // State 9: FAILED
+        $initialBalance = 5000.0;
+        $withdrawAmount = (float) $payload['source_amount'];
+        $fee = (float) $payload['fee'];
+        $payableAmount = $withdrawAmount + $fee;
+
+        $wallet = Wallet::create([
+            'uuid' => 'wallet-easylink-failed',
+            'user_id' => null,
+            'currency_id' => 360,
+            'balance' => $initialBalance,
+            'balance_sandbox' => 0,
+            'hold_balance' => 0,
+            'hold_balance_sandbox' => 0,
+            'status' => true,
+        ])->refresh();
+
+        $transaction = Transaction::create([
+            'trx_id' => $payload['reference_id'],
+            'trx_type' => TrxType::WITHDRAW,
+            'status' => TrxStatus::PENDING,
+            'net_amount' => (int) $payableAmount,
+            'payable_amount' => $payableAmount,
+            'wallet_reference' => $wallet->uuid,
+            'currency' => 'IDR',
+        ])->refresh();
+
+        $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');
+        $controller = app(IPNController::class);
+
+        $response = $controller->handleIPN($request, 'easylink', 'disbursment');
+
+        $this->assertSame(200, $response->status());
+        $this->assertSame([
+            'status' => 'success',
+            'message' => 'Webhook received',
+        ], $response->getData(true));
+
+        $this->assertSame(TrxStatus::FAILED, $transaction->fresh()->status);
+        $this->assertArrayHasKey('easylink_settlement', $transaction->fresh()->trx_data);
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_10_refund_success(): void
+    {
+        Event::fake([WebhookReceived::class]);
+
+        $payload = $this->easylinkPayloads[10]; // State 10: REFUND_SUCCESS
+        $initialBalance = 5000.0;
+        $withdrawAmount = (float) $payload['source_amount'];
+        $fee = (float) $payload['fee'];
+        $payableAmount = $withdrawAmount + $fee;
+
+        $wallet = Wallet::create([
+            'uuid' => 'wallet-easylink-refund',
+            'user_id' => null,
+            'currency_id' => 360,
+            'balance' => $initialBalance,
+            'balance_sandbox' => 0,
+            'hold_balance' => 0,
+            'hold_balance_sandbox' => 0,
+            'status' => true,
+        ])->refresh();
+
+        $transaction = Transaction::create([
+            'trx_id' => $payload['reference_id'],
+            'trx_type' => TrxType::WITHDRAW,
+            'status' => TrxStatus::PENDING,
+            'net_amount' => (int) $payableAmount,
+            'payable_amount' => $payableAmount,
+            'wallet_reference' => $wallet->uuid,
+            'currency' => 'IDR',
+        ])->refresh();
+
+        $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');
+        $controller = app(IPNController::class);
+
+        $response = $controller->handleIPN($request, 'easylink', 'disbursment');
+
+        $this->assertSame(200, $response->status());
+        $this->assertSame([
+            'status' => 'success',
+            'message' => 'Webhook received',
+        ], $response->getData(true));
+
+        $this->assertSame(TrxStatus::FAILED, $transaction->fresh()->status);
+        $this->assertArrayHasKey('easylink_settlement', $transaction->fresh()->trx_data);
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_26_processing_bank_partner(): void
+    {
+        $this->testEasylinkWithdrawState(26, 'PROCESSING_BANK_PARTNER');
+    }
+
+    public function test_handle_ipn_easylink_withdraw_state_27_remind_recipient(): void
+    {
+        $this->testEasylinkWithdrawState(27, 'REMIND_RECIPIENT');
+    }
+
     /**
      * @throws \JsonException
      */
@@ -312,7 +566,7 @@ class IPNControllerTest extends TestCase
         $request = Request::create(
             "/ipn/{$gatewayPath}",
             'POST',
-            $payload,
+            $payload, // This makes data accessible via $request->input()
             [],
             [],
             [
@@ -321,6 +575,9 @@ class IPNControllerTest extends TestCase
             ],
             $content
         );
+
+        // Merge JSON data into request so it's accessible via magic properties
+        $request->merge($payload);
 
         foreach ($query as $key => $value) {
             $request->query->set($key, $value);

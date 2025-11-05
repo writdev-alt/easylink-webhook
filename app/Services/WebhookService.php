@@ -99,6 +99,7 @@ class WebhookService
         $trxData = $transaction->trx_data ?? [];
         $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
 
+
         try {
             $webhookConfig = $transaction->getWebhookConfig();
 
@@ -406,16 +407,16 @@ class WebhookService
     protected function buildPaymentPayload(Transaction $transaction, ?string $message = null): array
     {
         $trxData = is_array($transaction->trx_data) ? $transaction->trx_data : [];
+        $rrn = $trxData['netzme_ipn_response']['additionalInfo']['rrn'] ?? null;
 
         return [
             'event' => $transaction->trx_type->value,
             'data' => [
                 'trx_id' => $transaction->trx_id,
                 'trx_reference' => $transaction->trx_reference,
-                'amount' => $transaction->payable_amount,
-                'net_amount' => $transaction->net_amount,
+                'rrn' => $rrn,
+                'amount' => $transaction->net_amount,
                 'currency_code' => $transaction->payable_currency,
-                'status' => $transaction->status->value,
                 'description' => $transaction->description,
                 'customer_name' => $transaction->customer?->name ?? $trxData['customer_name'] ?? null,
                 'customer_email' => $transaction->customer?->email ?? $trxData['customer_email'] ?? null,
@@ -423,16 +424,9 @@ class WebhookService
                 'merchant_id' => $transaction->merchant_id,
                 'merchant_name' => $transaction->merchant?->business_name,
                 'payment_method' => $transaction->provider,
-                'mdr_fee' => $transaction->mdr_fee,
-                'admin_fee' => $transaction->admin_fee,
-                'agent_fee' => $transaction->agent_fee,
-                'total_fee' => $transaction->trx_fee,
-                'success_redirect' => $trxData['success_redirect'] ?? null,
-                'cancel_redirect' => $trxData['cancel_redirect'] ?? null,
-                'environment' => config('app.mode'),
-                'is_sandbox' => config('app.mode') === 'sandbox',
             ],
             'message' => $message ?? $this->getDefaultMessage($transaction),
+            'status' => $transaction->status->value,
             'timestamp' => $transaction->updated_at->timestamp,
         ];
     }
@@ -575,6 +569,7 @@ class WebhookService
         } else {
             $url = $url;
         }
+//        dd($url, $payload, $transaction);
         try {
             WebhookCall::create()
                 ->url($url)

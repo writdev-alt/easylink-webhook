@@ -15,13 +15,13 @@ class DepositHandler implements SuccessHandlerInterface
     public function handleSuccess(Transaction $transaction): bool
     {
 
-        app(WebhookService::class)->sendPaymentReceiveWebhook($transaction, 'Deposit Completed');
+
         $wallet = app(WalletService::class)->addMoneyByWalletUuid($transaction->wallet_reference, $transaction->net_amount);
         if ($wallet) {
             return true;
         }
 
-        return false;
+        return app(WebhookService::class)->sendPaymentReceiveWebhook($transaction, 'Deposit Completed');
 
     }
 }

@@ -18,11 +18,6 @@ class PaymentHandler implements SuccessHandlerInterface
     {
         // If this is a RECEIVE_PAYMENT, add to balance and lock funds in hold
         if ($transaction->trx_type === TrxType::RECEIVE_PAYMENT) {
-            app(WalletService::class)->addMoneyByWalletUuid(
-                $transaction->wallet_reference,
-                (float) $transaction->net_amount
-            );
-
             $wallet = Wallet::where('uuid', $transaction->wallet_reference)->first();
             if ($wallet) {
                 return $wallet->addToHoldBalance((float) $transaction->net_amount);
@@ -31,14 +26,8 @@ class PaymentHandler implements SuccessHandlerInterface
             return false;
         }
 
-        // Default PLUS flow: add net amount to wallet
-        $result = app(WalletService::class)->addMoneyByWalletUuid(
-            $transaction->wallet_reference,
-            (float) $transaction->net_amount
-        );
 
-        app(WebhookService::class)->sendPaymentReceiveWebhook($transaction, 'Payment received');
+        return app(WebhookService::class)->sendPaymentReceiveWebhook($transaction, 'Payment received');
 
-        return (bool) $result;
     }
 }

@@ -34,5 +34,11 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'elk' => [
+        'host' => env('ELK_HOST'),
+        'host_ip' => env('ELK_HOST_IP'),
+        'username' => env('ELK_USERNAME'),
+        'password' => env('ELK_PASSWORD')
+    ],
 
 ];
