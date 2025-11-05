@@ -43,21 +43,16 @@ class WebhookCall extends Model
     protected $connection = 'mysql_site';
 
     protected $fillable = [
-        'uuid',
         'name',
         'url',
         'http_verb',
         'headers',
         'payload',
-        'raw_body',
-        'meta',
         'exception',
     ];
 
     protected $casts = [
-        'id' => 'int',
         'headers' => 'array',
         'payload' => 'array',
-        'meta' => 'array',
     ];
 }

@@ -48,10 +48,8 @@ class TransactionService
         $transaction = $this->findTransaction($trxId);
 
         if (! $transaction) {
-            throw NotifyErrorException::error(
-                __('Transaction not found for ID: :id', ['id' => $trxId]),
-                context: ['transaction_id' => $trxId],
-                status: HttpResponse::HTTP_NOT_FOUND,
+            throw new \Exception(
+                'Transaction not found for ID: ' . $trxId,
             );
         }
 
@@ -109,14 +107,14 @@ class TransactionService
      * @param  string|null  $remarks  Optional remarks for the transaction update.
      * @param  string|null  $description  Optional description for the transaction update.
      *
-     * @throws NotifyErrorException
+     * @throws \Exception
      */
     public function failTransaction(string $trxId, ?string $remarks = null, ?string $description = null): void
     {
         $transaction = $this->findTransaction($trxId);
 
         if (! $transaction) {
-            throw new \Exception("Transaction not found for ID: {$trxId}");
+            throw new \Exception('Transaction not found for ID: ' . $trxId);
         }
 
         $this->updateTransactionStatusWithRemarks($transaction, TrxStatus::FAILED, $remarks, $description);

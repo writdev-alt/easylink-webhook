@@ -18,17 +18,11 @@ class StoreWebhookCallListener implements ShouldQueue
     {
 
         $webhookCall = WebhookCall::create([
-            'uuid' => (string) Str::uuid(),
             'name' => $event->gateway,
             'url' => $event->url,
             'headers' => $event->headers,
             'payload' => $event->payload,
             'http_verb' => $event->httpVerb,
-            'raw_body' => $event->rawBody,
-            'meta' => array_filter([
-                'action' => $event->action,
-                'query' => $event->query,
-            ], fn ($value) => $value !== null && $value !== []),
         ]);
 
         Log::info('Webhook saved to database', [
