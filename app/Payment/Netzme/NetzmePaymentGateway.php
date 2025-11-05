@@ -39,8 +39,9 @@ class NetzmePaymentGateway implements PaymentGateway
             // If success, complete and send second webhook using same instance
             if ($request->transactionStatusDesc === 'Success' && $request->latestTransactionStatus === '00') {
                 if ($transaction->status !== TrxStatus::COMPLETED) {
+                    $rrn = $request->additionalInfo['rrn'];
                     app(TransactionService::class)->completeTransaction($request->originalPartnerReferenceNo);
-                    app(WebhookService::class)->sendPaymentReceiveWebhook($original);
+                    app(WebhookService::class)->sendPaymentReceiveWebhook($original, $rrn, 'Receive Payment via Netzme IPN');
                 }
 
                 // Continue with data updates after webhook dispatches

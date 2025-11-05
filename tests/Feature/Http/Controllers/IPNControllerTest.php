@@ -59,7 +59,7 @@ class IPNControllerTest extends TestCase
                 27 => 'transfer-state-27-remind_recipient.json',
                 default => "transfer-state-0{$state}.json",
             };
-            
+
             $filePath = base_path("tests/mockups/easylink/{$filename}");
             if (file_exists($filePath)) {
                 $this->easylinkPayloads[$state] = json_decode(
@@ -344,11 +344,11 @@ class IPNControllerTest extends TestCase
     /**
      * Test helper for easylink withdraw states that don't change transaction status
      */
-    private function testEasylinkWithdrawState(int $state, string $stateName, bool $expectStatusChange = false, ?TrxStatus $expectedStatus = null): void
+    private function test_easylink_withdraw_state(int $state, string $stateName, bool $expectStatusChange = false, ?TrxStatus $expectedStatus = null): void
     {
         Event::fake([WebhookReceived::class]);
 
-        if (!isset($this->easylinkPayloads[$state])) {
+        if (! isset($this->easylinkPayloads[$state])) {
             $this->markTestSkipped("Easylink state {$state} payload not available");
         }
 
@@ -386,7 +386,7 @@ class IPNControllerTest extends TestCase
 
         // Gateway returns false for states that don't trigger status changes, but still updates transaction data
         $expectsSuccess = $expectStatusChange;
-        
+
         if ($expectsSuccess) {
             $this->assertSame(200, $response->status());
             $this->assertSame([
@@ -412,9 +412,10 @@ class IPNControllerTest extends TestCase
             $this->assertSame(TrxStatus::PENDING, $transaction->status);
         }
 
-        Event::assertDispatched(WebhookReceived::class, function (WebhookReceived $event) use ($request): bool {
+        Event::assertDispatched(WebhookReceived::class, function (WebhookReceived $event): bool {
             $this->assertSame('easylink', $event->gateway);
             $this->assertSame('disbursment', $event->action);
+
             return true;
         });
     }

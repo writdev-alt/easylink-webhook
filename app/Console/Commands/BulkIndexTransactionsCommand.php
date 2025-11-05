@@ -40,7 +40,7 @@ class BulkIndexTransactionsCommand extends Command
         $dateTo = $this->option('date-to') ? Carbon::parse($this->option('date-to')) : null;
         $chunkSize = (int) $this->option('chunk-size');
 
-        $this->info("Starting bulk index operation for transactions...");
+        $this->info('Starting bulk index operation for transactions...');
         $this->info("Index: {$indexName}");
         $this->info("Chunk size: {$chunkSize}");
 
@@ -79,6 +79,7 @@ class BulkIndexTransactionsCommand extends Command
 
         if ($totalTransactions === 0) {
             $this->warn('No transactions found to index.');
+
             return Command::SUCCESS;
         }
 
@@ -100,7 +101,7 @@ class BulkIndexTransactionsCommand extends Command
                 } catch (\Exception $e) {
                     $errors++;
                     $this->newLine();
-                    $this->error("Error processing chunk: " . $e->getMessage());
+                    $this->error('Error processing chunk: '.$e->getMessage());
                 }
 
                 $progressBar->advance(count($transactions));
@@ -109,7 +110,7 @@ class BulkIndexTransactionsCommand extends Command
             $progressBar->finish();
             $this->newLine(2);
 
-            $this->info("Bulk indexing completed!");
+            $this->info('Bulk indexing completed!');
             $this->info("Successfully processed: {$processed} transactions");
             if ($errors > 0) {
                 $this->warn("Errors encountered: {$errors} chunks");
@@ -119,16 +120,14 @@ class BulkIndexTransactionsCommand extends Command
         } catch (\Exception $e) {
             $progressBar->finish();
             $this->newLine(2);
-            $this->error("Bulk indexing failed: " . $e->getMessage());
+            $this->error('Bulk indexing failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }
 
     /**
      * Transform a transaction model to Elasticsearch document format.
-     *
-     * @param Transaction $transaction
-     * @return array
      */
     protected function transformTransaction(Transaction $transaction): array
     {
@@ -169,4 +168,3 @@ class BulkIndexTransactionsCommand extends Command
         ];
     }
 }
-

@@ -153,13 +153,12 @@ class WalletService
             );
         }
 
-
-            if ($wallet->balance < $amount) {
-                throw NotifyErrorException::error(
-                    __('Insufficient balance in wallet.'),
-                    status: HttpResponse::HTTP_BAD_REQUEST,
-                );
-            }
+        if ($wallet->balance < $amount) {
+            throw NotifyErrorException::error(
+                __('Insufficient balance in wallet.'),
+                status: HttpResponse::HTTP_BAD_REQUEST,
+            );
+        }
 
         $wallet->decrementBalance($amount);
 

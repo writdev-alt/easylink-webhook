@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Constants\CurrencyRole;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -139,7 +137,6 @@ class Wallet extends Model
         return optional($this->currency)->hasRole($role) ?? false;
     }
 
-
     /**
      * Get the actual hold balance value based on app mode.
      */
@@ -149,7 +146,6 @@ class Wallet extends Model
 
         return (float) ($this->attributes[$fieldName] ?? 0);
     }
-
 
     /**
      * Add funds to hold balance.

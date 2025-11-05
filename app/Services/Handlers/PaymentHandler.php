@@ -6,7 +6,6 @@ use App\Enums\TrxType;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
-use App\Services\WalletService;
 use App\Services\WebhookService;
 
 class PaymentHandler implements SuccessHandlerInterface
@@ -25,7 +24,6 @@ class PaymentHandler implements SuccessHandlerInterface
 
             return false;
         }
-
 
         return app(WebhookService::class)->sendPaymentReceiveWebhook($transaction, 'Payment received');
 

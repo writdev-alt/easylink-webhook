@@ -19,21 +19,21 @@ class ElasticsearchService
     /**
      * Test the connection to the Elasticsearch server.
      *
-     * @return string
      * @throws ClientResponseException
      * @throws ServerResponseException
      */
     public function testConnection(): string
     {
         $response = $this->client->ping();
+
         return $response ? 'Connection successful' : 'Connection failed';
     }
 
     /**
      * Delete an index in Elasticsearch.
      *
-     * @param string $indexName
      * @return array
+     *
      * @throws ClientResponseException
      * @throws ServerResponseException
      * @throws MissingParameterException
@@ -41,7 +41,7 @@ class ElasticsearchService
     public function deleteIndex(string $indexName)
     {
         $params = [
-            'index' => $indexName
+            'index' => $indexName,
         ];
 
         return $this->client->indices()->delete($params);
@@ -50,8 +50,6 @@ class ElasticsearchService
     /**
      * Check if an index exists in Elasticsearch.
      *
-     * @param string $indexName
-     * @return bool
      * @throws ClientResponseException
      * @throws ServerResponseException
      */
@@ -63,8 +61,8 @@ class ElasticsearchService
     /**
      * Create an index in Elasticsearch with the given name and default settings.
      *
-     * @param string $indexName
      * @return array
+     *
      * @throws ClientResponseException
      * @throws ServerResponseException
      * @throws MissingParameterException
@@ -76,19 +74,19 @@ class ElasticsearchService
             'body' => [
                 'settings' => [
                     'number_of_shards' => 1,
-                    'number_of_replicas' => 0
+                    'number_of_replicas' => 0,
                 ],
                 'mappings' => [
                     'properties' => [
                         'title' => [
-                            'type' => 'text'
+                            'type' => 'text',
                         ],
                         'content' => [
-                            'type' => 'text'
-                        ]
-                    ]
-                ]
-            ]
+                            'type' => 'text',
+                        ],
+                    ],
+                ],
+            ],
         ];
 
         return $this->client->indices()->create($params);
@@ -97,9 +95,8 @@ class ElasticsearchService
     /**
      * Populate an index with the given data.
      *
-     * @param string $indexName
-     * @param array $data
      * @return array
+     *
      * @throws ClientResponseException
      * @throws MissingParameterException
      * @throws ServerResponseException
@@ -108,7 +105,7 @@ class ElasticsearchService
     {
         $params = [
             'index' => $indexName,
-            'body' => $data
+            'body' => $data,
         ];
 
         return $this->client->index($params);
@@ -117,26 +114,23 @@ class ElasticsearchService
     /**
      * Verify if a document with the given ID exists in the specified index.
      *
-     * @param string $index
-     * @param string $id
      * @return array
+     *
      * @throws ClientResponseException
      * @throws ServerResponseException
      */
     private function verifyExists(string $index, string $id)
     {
         $data = $this->client->search(['index' => $index,
-            'body' => ['query' => ['bool' => ['must' => ['term' => ['id' => $id]]]]]
+            'body' => ['query' => ['bool' => ['must' => ['term' => ['id' => $id]]]]],
         ]);
+
         return $data['hits']['hits'];
     }
 
     /**
      * Perform a bulk index operation with the given data.
      *
-     * @param string $indexName
-     * @param array $data
-     * @return array
      * @throws \Exception
      */
     public function bulkIndexData(string $indexName, array $data): array
@@ -146,11 +140,11 @@ class ElasticsearchService
         foreach ($data as $item) {
             $elastic_prop = $this->verifyExists($indexName, $item['id']);
 
-            if (!count($elastic_prop)) {
+            if (! count($elastic_prop)) {
                 $params['body'][] = [
                     'create' => [
-                        '_index' => $indexName
-                    ]
+                        '_index' => $indexName,
+                    ],
                 ];
 
                 $params['body'][] = $item;
@@ -159,18 +153,18 @@ class ElasticsearchService
                     'update' => [
                         '_index' => $indexName,
                         '_id' => $elastic_prop[0]['_id'],
-                    ]
+                    ],
                 ];
 
                 $params['body'][] = ['doc' => $item];
             }
         }
 
-        if (!empty($params['body'])) {
+        if (! empty($params['body'])) {
             $response = $this->client->bulk($params);
 
             if (isset($response['errors']) && $response['errors']) {
-                throw new \Exception('Bulk operation failed: ' . json_encode($response['items']));
+                throw new \Exception('Bulk operation failed: '.json_encode($response['items']));
             }
         }
 
@@ -180,10 +174,6 @@ class ElasticsearchService
     /**
      * Get paginated data from the specified index.
      *
-     * @param string $indexName
-     * @param int $page
-     * @param int $pageSize
-     * @return array|string
      * @throws ClientResponseException
      * @throws ServerResponseException
      */
@@ -197,9 +187,9 @@ class ElasticsearchService
                 'from' => $from,
                 'size' => $pageSize,
                 'query' => [
-                    'match_all' => new \stdClass()
-                ]
-            ]
+                    'match_all' => new \stdClass,
+                ],
+            ],
         ];
 
         $response = $this->client->search($params);
@@ -209,7 +199,7 @@ class ElasticsearchService
                 'total' => $response['hits']['total']['value'],
                 'data' => $response['hits']['hits'],
                 'current_page' => $page,
-                'per_page' => $pageSize
+                'per_page' => $pageSize,
             ];
         }
 
@@ -219,9 +209,8 @@ class ElasticsearchService
     /**
      * Get data from the specified index by document ID.
      *
-     * @param string $indexName
-     * @param string $id
      * @return array|string
+     *
      * @throws ClientResponseException
      * @throws ServerResponseException
      */
@@ -232,10 +221,10 @@ class ElasticsearchService
             'body' => [
                 'query' => [
                     'match' => [
-                        '_id' => $id
-                    ]
-                ]
-            ]
+                        '_id' => $id,
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->client->search($params);
@@ -246,6 +235,4 @@ class ElasticsearchService
 
         return 'Document not found';
     }
-
-
 }

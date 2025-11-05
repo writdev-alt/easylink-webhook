@@ -15,7 +15,6 @@ class DepositHandler implements SuccessHandlerInterface
     public function handleSuccess(Transaction $transaction): bool
     {
 
-
         $wallet = app(WalletService::class)->addMoneyByWalletUuid($transaction->wallet_reference, $transaction->net_amount);
         if ($wallet) {
             return true;

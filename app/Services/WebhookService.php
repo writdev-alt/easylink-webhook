@@ -94,11 +94,10 @@ class WebhookService
      * @example
      * $webhookService->sendPaymentReceiveWebhook($transaction, 'Payment Completed');
      */
-    public function sendPaymentReceiveWebhook(Transaction $transaction, ?string $message = null): bool
+    public function sendPaymentReceiveWebhook(Transaction $transaction, string $rrn, ?string $message = null): bool
     {
         $trxData = $transaction->trx_data ?? [];
         $attemptCount = ($trxData['webhook_attempts'] ?? 0) + 1;
-
 
         try {
             $webhookConfig = $transaction->getWebhookConfig();
@@ -127,7 +126,7 @@ class WebhookService
             }
 
             // Prepare webhook payload with payment details
-            $payload = $this->buildPaymentPayload($transaction, $message);
+            $payload = $this->buildPaymentPayload($transaction, $rrn, $message);
 
             // Send webhook using Spatie Webhook Server
             $this->dispatchWebhook(
@@ -404,11 +403,10 @@ class WebhookService
      * @param  string|null  $message  Optional custom message
      * @return array The webhook payload
      */
-    protected function buildPaymentPayload(Transaction $transaction, ?string $message = null): array
+    protected function buildPaymentPayload(Transaction $transaction, string $rrn, ?string $message = null): array
     {
         $transaction->refresh();
         $trxData = is_array($transaction->trx_data) ? $transaction->trx_data : [];
-        $rrn = $trxData['netzme_ipn_response']['additionalInfo']['rrn'] ?? null;
 
         return [
             'event' => $transaction->trx_type->value,
@@ -570,7 +568,7 @@ class WebhookService
         } else {
             $url = $url;
         }
-//        dd($url, $payload, $transaction);
+        //        dd($url, $payload, $transaction);
         try {
             WebhookCall::create()
                 ->url($url)
