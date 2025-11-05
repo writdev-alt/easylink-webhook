@@ -406,6 +406,7 @@ class WebhookService
      */
     protected function buildPaymentPayload(Transaction $transaction, ?string $message = null): array
     {
+        $transaction->refresh();
         $trxData = is_array($transaction->trx_data) ? $transaction->trx_data : [];
         $rrn = $trxData['netzme_ipn_response']['additionalInfo']['rrn'] ?? null;
 
@@ -427,7 +428,7 @@ class WebhookService
             ],
             'message' => $message ?? $this->getDefaultMessage($transaction),
             'status' => $transaction->status->value,
-            'timestamp' => $transaction->updated_at->timestamp,
+            'timestamp' => $transaction->updated_at->unix(),
         ];
     }
 

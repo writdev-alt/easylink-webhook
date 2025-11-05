@@ -16,6 +16,7 @@ class StoreWebhookCallListener implements ShouldQueue
 
     public function handle(WebhookReceived $event): void
     {
+
         $webhookCall = WebhookCall::create([
             'uuid' => (string) Str::uuid(),
             'name' => $event->gateway,
