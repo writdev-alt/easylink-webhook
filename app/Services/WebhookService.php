@@ -414,7 +414,7 @@ class WebhookService
                 'trx_id' => $transaction->trx_id,
                 'trx_reference' => $transaction->trx_reference,
                 'rrn' => $rrn,
-                'amount' => $transaction->net_amount,
+                'amount' => $transaction->payable_amount,
                 'currency_code' => $transaction->payable_currency,
                 'description' => $transaction->description,
                 'customer_name' => $transaction->customer?->name ?? $trxData['customer_name'] ?? null,
