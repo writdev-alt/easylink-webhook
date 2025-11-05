@@ -9,6 +9,7 @@ use App\Enums\TrxType;
 use App\Models\Transaction;
 use App\Payment\Easylink\Enums\TransferState;
 use App\Services\TransactionService;
+use App\Services\WebhookService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -42,15 +43,18 @@ class EasylinkPaymentGateway
             $handled = match ((int) $request->state) {
                 TransferState::COMPLETE->value => tap(true, function () use ($request): void {
                     app(TransactionService::class)->completeTransaction($request->reference_id);
+                    app(WebhookService::class)->sendWithdrawalWebhook($request->reference_id);
 
                 }),
 
                 TransferState::FAILED->value => tap(true, function () use ($request): void {
                     app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Disbursement Failed', 'Withdrawal failed');
+                    app(WebhookService::class)->sendWithdrawalWebhook($request->reference_id);
                 }),
 
                 TransferState::REFUND_SUCCESS->value => tap(true, function () use ($request): void {
                     app(TransactionService::class)->failTransaction($request->reference_id, 'Easylink Disbursement Refunded', 'Withdrawal refunded');
+                    app(WebhookService::class)->sendWithdrawalWebhook($request->reference_id);
                 }),
 
                 default => false,
