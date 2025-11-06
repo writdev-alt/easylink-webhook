@@ -232,7 +232,6 @@ class WebhookService
 
             // Prepare webhook payload with withdrawal details
             $payload = $this->buildWithdrawalPayload($transaction, $message);
-
             // Send webhook using Spatie Webhook Server
             $this->dispatchWebhook(
                 url: $webhookConfig['url'],
@@ -565,16 +564,16 @@ class WebhookService
     {
         if (app()->environment('local')) {
             $url = config('site.webhook_url');
-        } else {
-            $url = $url;
+            $secret = config('site.webhook_secret');
         }
-        //        dd($url, $payload, $transaction);
         try {
             WebhookCall::create()
                 ->url($url)
                 ->payload($payload)
                 ->useSecret($secret)
                 ->dispatch();
+            Log::info('signature: '. hash_hmac('sha256', json_encode($payload), $secret));
+            file_put_contents(storage_path('app/public/webhook_'.$transaction->trx_id.'.json'), json_encode($payload));
 
             Log::channel('webhook')->info('Webhook dispatched', [
                 'trx_id' => $transaction->trx_id,

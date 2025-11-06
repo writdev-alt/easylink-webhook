@@ -54,6 +54,7 @@ class IPNController
             ]);
 
             $rawBody = $request->getContent();
+            file_put_contents(storage_path('app/public/ipn.json'), $rawBody);
 
             event(new WebhookReceived(
                 gateway: $gateway,

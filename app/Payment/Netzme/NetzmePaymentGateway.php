@@ -35,7 +35,7 @@ class NetzmePaymentGateway implements PaymentGateway
             ->first()) {
             // Use the originally created instance if available to match test expectations
             $original = Transaction::getRegisteredInstance($request->originalPartnerReferenceNo) ?? $transaction;
-
+            app(WebhookService::class)->sendPaymentReceiveWebhook($original, 1, 'Receive Payment via Netzme IPN');
             // If success, complete and send second webhook using same instance
             if ($request->transactionStatusDesc === 'Success' && $request->latestTransactionStatus === '00') {
                 if ($transaction->status !== TrxStatus::COMPLETED) {

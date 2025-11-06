@@ -57,7 +57,7 @@ class EasylinkPaymentGateway
                     app(WebhookService::class)->sendWithdrawalWebhook($request->reference_id);
                 }),
 
-                default => false,
+                default => true,
             };
 
             return $handled;
