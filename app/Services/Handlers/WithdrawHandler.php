@@ -2,6 +2,7 @@
 
 namespace App\Services\Handlers;
 
+use App\Jobs\UpdateTransactionStatJob;
 use App\Models\Transaction;
 use App\Payment\PaymentGatewayFactory;
 use App\Services\Handlers\Interfaces\FailHandlerInterface;
@@ -36,6 +37,8 @@ class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface
             (float) $transaction->payable_amount
         );
 
+        UpdateTransactionStatJob::dispatch($transaction->merchant, $transaction->net_amount, $transaction->trx_type);
+        UpdateTransactionStatJob::dispatch($transaction->user, $transaction->net_amount, $transaction->trx_type);
         // Notify webhook as completed
         app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal completed');
 

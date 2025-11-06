@@ -3,7 +3,6 @@
 namespace App\Services\Handlers;
 
 use App\Enums\TrxType;
-use App\Events\GenerateStatisticEvent;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
@@ -21,7 +20,10 @@ class PaymentHandler implements SuccessHandlerInterface
             $wallet = Wallet::where('uuid', $transaction->wallet_reference)->first();
             if ($wallet) {
                 $amount = $transaction->net_amount;
-                event(new GenerateStatisticEvent($amount));
+
+                UpdateTransactionStatJob::dispatch($transaction->merchant, $amount, $transaction->trx_type);
+                UpdateTransactionStatJob::dispatch($transaction->user, $amount, $transaction->trx_type);
+
                 return $wallet->addToHoldBalance($amount);
             }
 

@@ -6,14 +6,12 @@ namespace App\Services;
 
 use App\Enums\TrxStatus;
 use App\Enums\TrxType;
-use App\Exceptions\NotifyErrorException;
 use App\Models\Transaction;
 use App\Services\Handlers\DepositHandler;
 use App\Services\Handlers\Interfaces\FailHandlerInterface;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
 use App\Services\Handlers\PaymentHandler;
 use App\Services\Handlers\WithdrawHandler;
-use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 /**
  * TransactionService
@@ -49,7 +47,7 @@ class TransactionService
 
         if (! $transaction) {
             throw new \Exception(
-                'Transaction not found for ID: ' . $trxId,
+                'Transaction not found for ID: '.$trxId,
             );
         }
 
@@ -114,7 +112,7 @@ class TransactionService
         $transaction = $this->findTransaction($trxId);
 
         if (! $transaction) {
-            throw new \Exception('Transaction not found for ID: ' . $trxId);
+            throw new \Exception('Transaction not found for ID: '.$trxId);
         }
 
         $this->updateTransactionStatusWithRemarks($transaction, TrxStatus::FAILED, $remarks, $description);

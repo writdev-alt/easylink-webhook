@@ -11,7 +11,7 @@ class EventServiceProvider extends ServiceProvider
             \App\Listeners\StoreWebhookCallListener::class,
         ],
         \App\Events\GenerateStatisticEvent::class => [
-            \App\Listeners\GenerateStatisticListener::class,
+            \App\Jobs\UpdateTransactionStatJob::class,
         ],
     ];
 }

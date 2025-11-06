@@ -572,7 +572,7 @@ class WebhookService
                 ->payload($payload)
                 ->useSecret($secret)
                 ->dispatch();
-            Log::info('signature: '. hash_hmac('sha256', json_encode($payload), $secret));
+            Log::info('signature: '.hash_hmac('sha256', json_encode($payload), $secret));
             file_put_contents(storage_path('app/public/webhook_'.$transaction->trx_id.'.json'), json_encode($payload));
 
             Log::channel('webhook')->info('Webhook dispatched', [
