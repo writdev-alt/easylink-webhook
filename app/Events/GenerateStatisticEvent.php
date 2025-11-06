@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Enums\TrxType;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -17,7 +18,7 @@ class GenerateStatisticEvent
     /**
      * Create a new event instance.
      */
-    public function __construct(private int $amount)
+    public function __construct(public int $merchantId, public int $amount, public TrxType $type)
     {
         //
     }
