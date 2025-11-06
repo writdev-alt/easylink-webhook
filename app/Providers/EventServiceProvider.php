@@ -2,15 +2,16 @@
 
 namespace App\Providers;
 
-use App\Events\WebhookReceived;
-use App\Listeners\StoreWebhookCallListener;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
 {
     protected $listen = [
-        WebhookReceived::class => [
-            StoreWebhookCallListener::class,
+        \App\Events\WebhookReceived::class => [
+            \App\Listeners\StoreWebhookCallListener::class,
+        ],
+        \App\Events\GenerateStatisticEvent::class => [
+            \App\Listeners\GenerateStatisticListener::class,
         ],
     ];
 }
