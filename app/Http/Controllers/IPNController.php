@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Events\WebhookReceived;
 use App\Jobs\StoreWebhookPayloadJob;
 use App\Payment\PaymentGatewayFactory;
 use Illuminate\Http\JsonResponse;
@@ -44,9 +43,9 @@ class IPNController
             }
             if ($gateway === 'netzme') {
                 $trxId = $request->originalPartnerReferenceNo;
-            } elseif($gateway === 'easylink') {
+            } elseif ($gateway === 'easylink') {
                 $trxId = $request->reference_id;
-            }else {
+            } else {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Unsupported gateway',

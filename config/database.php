@@ -17,6 +17,7 @@ return [
     */
 
     'default' => env('DB_CONNECTION', 'sqlite'),
+    'webhook_calls_connection' => env('DB_CONNECTION_WEBHOOK_CALLS', 'mysql_site'),
 
     /*
     |--------------------------------------------------------------------------

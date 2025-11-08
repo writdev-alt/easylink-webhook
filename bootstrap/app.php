@@ -1,7 +1,5 @@
 <?php
 
-use App\Console\Commands\RecalculateTransactionStatsCommand;
-use App\Console\Commands\TriggerTransactionWebhookCommand;
 use App\Exceptions\NotifyErrorException;
 use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -24,10 +22,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         apiPrefix: 'ipn',
     )
-    ->withCommands([
-        RecalculateTransactionStatsCommand::class,
-        TriggerTransactionWebhookCommand::class,
-    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(replace: [
             ValidateCsrfToken::class => VerifyCsrfToken::class,

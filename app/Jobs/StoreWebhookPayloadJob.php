@@ -21,6 +21,7 @@ class StoreWebhookPayloadJob implements ShouldQueue
         public array $requestHeaders,
         public string $requestMethod,
     ) {}
+
     public function handle()
     {
         WebhookCall::create([
@@ -32,5 +33,4 @@ class StoreWebhookPayloadJob implements ShouldQueue
             'trx_id' => $this->trxId,
         ]);
     }
-
 }
