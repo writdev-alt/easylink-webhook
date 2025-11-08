@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\WebhookReceived;
+use App\Jobs\StoreWebhookPayloadJob;
 use App\Payment\PaymentGatewayFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,16 @@ class IPNController
                     'message' => 'Unsupported payment gateway',
                 ], 404);
             }
+            if ($gateway === 'netzme') {
+                $trxId = $request->originalPartnerReferenceNo;
+            } elseif($gateway === 'easylink') {
+                $trxId = $request->reference_id;
+            }else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unsupported gateway',
+                ], 400);
+            }
 
             Log::info('IPN received', [
                 'gateway' => $gateway,
@@ -52,19 +63,14 @@ class IPNController
             $payload = array_merge($request->toArray(), [
                 '_action' => $action,
             ]);
-
-            $rawBody = $request->getContent();
-            file_put_contents(storage_path('app/public/ipn.json'), $rawBody);
-
-            event(new WebhookReceived(
+            // Dispatch event for webhook received
+            dispatch(new StoreWebhookPayloadJob(
                 gateway: $gateway,
-                action: is_string($action) ? trim($action) : null,
-                url: $request->fullUrl(),
-                headers: $request->headers->all(),
                 payload: $payload,
-                httpVerb: $request->method(),
-                query: $request->query->all(),
-                rawBody: $rawBody !== '' ? $rawBody : null,
+                trxId: $trxId,
+                requestUrl: $request->fullUrl(),
+                requestHeaders: $request->headers->all(),
+                requestMethod: $request->method(),
             ));
 
             // Handle IPN based on the specific gateway

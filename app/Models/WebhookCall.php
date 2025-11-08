@@ -49,6 +49,7 @@ class WebhookCall extends Model
         'headers',
         'payload',
         'exception',
+        'trx_id',
     ];
 
     protected $casts = [
