@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Http\Controllers;
 
+use App\Constants\CurrencyType;
+use App\Enums\MethodType;
 use App\Enums\TrxStatus;
 use App\Enums\TrxType;
 use App\Events\WebhookReceived;
 use App\Http\Controllers\IPNController;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Models\Wallet;
 use App\Payment\PaymentGatewayFactory;
 use App\Services\TransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -26,15 +31,37 @@ class IPNControllerTest extends TestCase
     use MockeryPHPUnitIntegration;
     use RefreshDatabase;
 
+    private const CURRENCY_ID = 360;
+
     private array $payload;
 
     private array $pendingPayload;
 
     private array $easylinkPayloads = [];
 
+    private User $user;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->user = User::factory()->create();
+
+        DB::table('currencies')->insertOrIgnore([
+            'id' => self::CURRENCY_ID,
+            'flag' => null,
+            'name' => 'Indonesian Rupiah',
+            'code' => 'IDR',
+            'symbol' => 'Rp',
+            'type' => CurrencyType::FIAT,
+            'auto_wallet' => 0,
+            'exchange_rate' => 1,
+            'rate_live' => false,
+            'default' => 'inactive',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->payload = json_decode(
             (string) file_get_contents(base_path('tests/mockups/netzme/success.json')),
@@ -184,8 +211,8 @@ class IPNControllerTest extends TestCase
 
         $wallet = Wallet::create([
             'uuid' => 'wallet-test-uuid',
-            'user_id' => null,
-            'currency_id' => 360,
+            'user_id' => $this->user->id,
+            'currency_id' => self::CURRENCY_ID,
             'balance' => $initialBalance,
             'balance_sandbox' => 0,
             'hold_balance' => 0,
@@ -194,11 +221,17 @@ class IPNControllerTest extends TestCase
         ])->refresh();
 
         $transaction = Transaction::create([
+            'user_id' => $this->user->id,
             'trx_id' => $this->payload['originalPartnerReferenceNo'],
             'trx_type' => TrxType::DEPOSIT,
             'status' => TrxStatus::PENDING,
             'net_amount' => $netAmount,
             'wallet_reference' => $wallet->uuid,
+            'processing_type' => MethodType::SYSTEM,
+            'amount' => $netAmount,
+            'currency' => 'IDR',
+            'payable_amount' => $netAmount,
+            'trx_reference' => (string) Str::uuid(),
         ])->refresh();
 
         $request = $this->createJsonRequest($this->payload);
@@ -241,8 +274,8 @@ class IPNControllerTest extends TestCase
 
         $wallet = Wallet::create([
             'uuid' => 'wallet-test-uuid',
-            'user_id' => null,
-            'currency_id' => 360,
+            'user_id' => $this->user->id,
+            'currency_id' => self::CURRENCY_ID,
             'balance' => $initialBalance,
             'balance_sandbox' => 0,
             'hold_balance' => 0,
@@ -251,11 +284,17 @@ class IPNControllerTest extends TestCase
         ])->refresh();
 
         $transaction = Transaction::create([
+            'user_id' => $this->user->id,
             'trx_id' => $this->pendingPayload['originalPartnerReferenceNo'],
             'trx_type' => TrxType::DEPOSIT,
             'status' => TrxStatus::PENDING,
             'net_amount' => (int) $this->pendingPayload['netAmount']['value'],
             'wallet_reference' => $wallet->uuid,
+            'processing_type' => MethodType::SYSTEM,
+            'amount' => (int) $this->pendingPayload['netAmount']['value'],
+            'currency' => 'IDR',
+            'payable_amount' => (int) $this->pendingPayload['netAmount']['value'],
+            'trx_reference' => (string) Str::uuid(),
         ])->refresh();
 
         $request = $this->createJsonRequest($this->pendingPayload);
@@ -291,6 +330,10 @@ class IPNControllerTest extends TestCase
         Event::fake([WebhookReceived::class]);
 
         $initialBalance = 5000.0;
+        if (! isset($this->easylinkPayloads[7])) {
+            $this->markTestSkipped('Easylink state 7 payload not available');
+        }
+
         $payload = $this->easylinkPayloads[7]; // State 7: COMPLETE
         $withdrawAmount = (float) $payload['source_amount'];
         $fee = (float) $payload['fee'];
@@ -298,8 +341,8 @@ class IPNControllerTest extends TestCase
 
         $wallet = Wallet::create([
             'uuid' => 'wallet-easylink-test-uuid',
-            'user_id' => null,
-            'currency_id' => 360,
+            'user_id' => $this->user->id,
+            'currency_id' => self::CURRENCY_ID,
             'balance' => $initialBalance,
             'balance_sandbox' => 0,
             'hold_balance' => 0,
@@ -308,6 +351,7 @@ class IPNControllerTest extends TestCase
         ])->refresh();
 
         $transaction = Transaction::create([
+            'user_id' => $this->user->id,
             'trx_id' => $payload['reference_id'],
             'trx_type' => TrxType::WITHDRAW,
             'status' => TrxStatus::PENDING,
@@ -315,6 +359,9 @@ class IPNControllerTest extends TestCase
             'payable_amount' => $payableAmount,
             'wallet_reference' => $wallet->uuid,
             'currency' => 'IDR',
+            'processing_type' => MethodType::SYSTEM,
+            'amount' => $payableAmount,
+            'trx_reference' => (string) Str::uuid(),
         ])->refresh();
 
         $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');
@@ -342,9 +389,9 @@ class IPNControllerTest extends TestCase
     }
 
     /**
-     * Test helper for easylink withdraw states that don't change transaction status
+     * Test helper for easylink withdraw states that don't change transaction status.
      */
-    private function test_easylink_withdraw_state(int $state, string $stateName, bool $expectStatusChange = false, ?TrxStatus $expectedStatus = null): void
+    private function testEasylinkWithdrawState(int $state, string $stateName, bool $expectStatusChange = false, ?TrxStatus $expectedStatus = null): void
     {
         Event::fake([WebhookReceived::class]);
 
@@ -360,8 +407,8 @@ class IPNControllerTest extends TestCase
 
         $wallet = Wallet::create([
             'uuid' => "wallet-easylink-state-{$state}",
-            'user_id' => null,
-            'currency_id' => 360,
+            'user_id' => $this->user->id,
+            'currency_id' => self::CURRENCY_ID,
             'balance' => $initialBalance,
             'balance_sandbox' => 0,
             'hold_balance' => 0,
@@ -370,6 +417,7 @@ class IPNControllerTest extends TestCase
         ])->refresh();
 
         $transaction = Transaction::create([
+            'user_id' => $this->user->id,
             'trx_id' => $payload['reference_id'],
             'trx_type' => TrxType::WITHDRAW,
             'status' => TrxStatus::PENDING,
@@ -377,6 +425,9 @@ class IPNControllerTest extends TestCase
             'payable_amount' => $payableAmount,
             'wallet_reference' => $wallet->uuid,
             'currency' => 'IDR',
+            'processing_type' => MethodType::SYSTEM,
+            'amount' => $payableAmount,
+            'trx_reference' => (string) Str::uuid(),
         ])->refresh();
 
         $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');
@@ -459,6 +510,10 @@ class IPNControllerTest extends TestCase
     {
         Event::fake([WebhookReceived::class]);
 
+        if (! isset($this->easylinkPayloads[9])) {
+            $this->markTestSkipped('Easylink state 9 payload not available');
+        }
+
         $payload = $this->easylinkPayloads[9]; // State 9: FAILED
         $initialBalance = 5000.0;
         $withdrawAmount = (float) $payload['source_amount'];
@@ -467,8 +522,8 @@ class IPNControllerTest extends TestCase
 
         $wallet = Wallet::create([
             'uuid' => 'wallet-easylink-failed',
-            'user_id' => null,
-            'currency_id' => 360,
+            'user_id' => $this->user->id,
+            'currency_id' => self::CURRENCY_ID,
             'balance' => $initialBalance,
             'balance_sandbox' => 0,
             'hold_balance' => 0,
@@ -477,6 +532,7 @@ class IPNControllerTest extends TestCase
         ])->refresh();
 
         $transaction = Transaction::create([
+            'user_id' => $this->user->id,
             'trx_id' => $payload['reference_id'],
             'trx_type' => TrxType::WITHDRAW,
             'status' => TrxStatus::PENDING,
@@ -484,6 +540,9 @@ class IPNControllerTest extends TestCase
             'payable_amount' => $payableAmount,
             'wallet_reference' => $wallet->uuid,
             'currency' => 'IDR',
+            'processing_type' => MethodType::SYSTEM,
+            'amount' => $payableAmount,
+            'trx_reference' => (string) Str::uuid(),
         ])->refresh();
 
         $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');
@@ -505,6 +564,10 @@ class IPNControllerTest extends TestCase
     {
         Event::fake([WebhookReceived::class]);
 
+        if (! isset($this->easylinkPayloads[10])) {
+            $this->markTestSkipped('Easylink state 10 payload not available');
+        }
+
         $payload = $this->easylinkPayloads[10]; // State 10: REFUND_SUCCESS
         $initialBalance = 5000.0;
         $withdrawAmount = (float) $payload['source_amount'];
@@ -513,8 +576,8 @@ class IPNControllerTest extends TestCase
 
         $wallet = Wallet::create([
             'uuid' => 'wallet-easylink-refund',
-            'user_id' => null,
-            'currency_id' => 360,
+            'user_id' => $this->user->id,
+            'currency_id' => self::CURRENCY_ID,
             'balance' => $initialBalance,
             'balance_sandbox' => 0,
             'hold_balance' => 0,
@@ -523,6 +586,7 @@ class IPNControllerTest extends TestCase
         ])->refresh();
 
         $transaction = Transaction::create([
+            'user_id' => $this->user->id,
             'trx_id' => $payload['reference_id'],
             'trx_type' => TrxType::WITHDRAW,
             'status' => TrxStatus::PENDING,
@@ -530,6 +594,9 @@ class IPNControllerTest extends TestCase
             'payable_amount' => $payableAmount,
             'wallet_reference' => $wallet->uuid,
             'currency' => 'IDR',
+            'processing_type' => MethodType::SYSTEM,
+            'amount' => $payableAmount,
+            'trx_reference' => (string) Str::uuid(),
         ])->refresh();
 
         $request = $this->createJsonRequest($payload, gatewayPath: 'easylink');

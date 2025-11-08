@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id(); // Primary key for the transactions table
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Reference to the user who performed the transaction
-            $table->string('trx_id')->nullable(); // External transaction or reference ID (e.g., TXNTDUJLTASTGSZ)
+            $table->string('trx_id')->unique()->index(); // External transaction or reference ID (e.g., TXNTDUJLTASTGSZ)
             $table->string('trx_type'); // Type of transaction (e.g., deposit, withdrawal, payment)
             $table->text('description')->nullable(); // Optional human-readable description of the transaction
             $table->string('provider')->nullable(); // Transaction source or provider (e.g., stripe, paystack, user_wallet, admin_wallet)
@@ -27,7 +27,13 @@ return new class extends Migration
             $table->decimal('payable_amount', 15, 2)->nullable(); // The actual amount payable (may include conversions)
             $table->string('payable_currency', 3)->nullable(); // Currency for the payable amount (ISO 3-character code)
             $table->string('wallet_reference')->nullable(); // Wallet identifier for the transaction (if applicable)
-            $table->string('trx_reference')->nullable(); // External reference ID (e.g., TXNTDUJLTASTGSZ)
+            $table->string('trx_reference')->unique()->index(); // External reference ID (e.g., TXNTDUJLTASTGSZ)
+            $table->decimal('trx_fee', 15, 2)->nullable()->comment('Total Transaction Fee ma_fee+mdr_fee+admin_fee+agent_fee');
+            $table->decimal('cashback_fee', 15, 2)->nullable()->comment('MDR Cashback Fee from PG');
+            $table->decimal('ma_fee', 15, 2)->nullable()->comment('Merchant Aggregator Fee');
+            $table->decimal('mdr_fee', 15, 2)->nullable()->comment('Merchant Discount Rate Fee');
+            $table->decimal('admin_fee', 15, 2)->nullable()->comment('Admin Fee');
+            $table->decimal('agent_fee', 15, 2)->nullable()->comment('Agent Fee');
             $table->json('trx_data')->nullable(); // Additional structured transaction data (e.g., bank account details, payment gateway metadata)
             $table->text('remarks')->nullable(); // Any remarks or messages for transaction approval/rejection
             $table->enum('status', ['pending', 'completed', 'failed']); // Current status of the transaction
