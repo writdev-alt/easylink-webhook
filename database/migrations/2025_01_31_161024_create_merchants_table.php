@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MerchantStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,22 +14,26 @@ return new class extends Migration
     {
         Schema::create('merchants', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id');
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('agent_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('merchant_key')->unique();
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->string('business_name')->index(); // Indexed for better search performance
-            $table->string('site_url')->unique();
-            $table->unsignedBigInteger('currency_id');
-            $table->foreign('currency_id')->references('id')->on('currencies')->onDelete('cascade');
-            $table->string('business_logo')->nullable(); // Consider whether logos are mandatory
+            $table->string('business_name')->index();
+            $table->string('site_url')->nullable()->unique();
+            $table->foreignId('currency_id')->constrained()->cascadeOnDelete();
+            $table->string('business_logo')->nullable();
             $table->string('business_email')->nullable();
             $table->text('business_description')->nullable();
-            $table->double('fee')->default(0);
-            $table->string('api_key', 64)->nullable(); // Assuming an API key length of 64 characters
-            $table->string('api_secret', 64)->nullable(); // Assuming an API secret length of 64 characters
-            $table->string('status')->default('pending')->index(); // Default status
+            $table->string('business_whatsapp_group_id')->nullable();
+            $table->string('business_telegram_group_id')->nullable();
+            $table->string('business_email_group')->nullable();
+            $table->decimal('ma_fee', 10, 2)->default(0);
+            $table->decimal('trx_fee', 10, 2)->default(0);
+            $table->decimal('agent_fee', 10, 2)->default(0);
+            $table->string('api_key', 64)->nullable();
+            $table->string('api_secret', 64)->nullable();
+            $table->string('status')->default(MerchantStatus::PENDING->value)->index();
             $table->timestamps();
-            $table->softDeletes(); // Enables soft deletes
+            $table->softDeletes();
         });
     }
 

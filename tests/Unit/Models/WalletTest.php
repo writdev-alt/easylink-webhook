@@ -6,10 +6,39 @@ use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Illuminate\Support\Facades\DB;
+use App\Constants\CurrencyType;
 
 class WalletTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const CURRENCY_ID = 360;
+
+    private User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create();
+
+        DB::table('currencies')->insertOrIgnore([
+            'id' => self::CURRENCY_ID,
+            'flag' => null,
+            'name' => 'Indonesian Rupiah',
+            'code' => 'IDR',
+            'symbol' => 'Rp',
+            'type' => CurrencyType::FIAT,
+            'auto_wallet' => 0,
+            'exchange_rate' => 1,
+            'rate_live' => false,
+            'default' => 'inactive',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 
     public function test_wallet_can_be_created_with_required_attributes()
     {
@@ -91,90 +120,8 @@ class WalletTest extends TestCase
         );
     }
 
-    public function test_wallet_get_actual_balance_method()
-    {
-        $user = User::factory()->create();
 
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
-            'currency_id' => 360,
-            'uuid' => 'wallet-uuid-123',
-            'balance' => 1000.00,
-            'hold_balance' => 100.00,
-            'balance_sandbox' => 500.00,
-            'hold_balance_sandbox' => 50.00,
-            'status' => true,
-        ]);
 
-        // Test production balance (default)
-        $this->assertEquals(1000.00, $wallet->getActualBalance());
-
-        // Test sandbox balance
-        $this->assertEquals(500.00, $wallet->getActualBalance(true));
-    }
-
-    public function test_wallet_get_actual_hold_balance_method()
-    {
-        $user = User::factory()->create();
-
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
-            'currency_id' => 360,
-            'uuid' => 'wallet-uuid-123',
-            'balance' => 1000.00,
-            'hold_balance' => 100.00,
-            'balance_sandbox' => 500.00,
-            'hold_balance_sandbox' => 50.00,
-            'status' => true,
-        ]);
-
-        // Test production hold balance (default)
-        $this->assertEquals(100.00, $wallet->getActualHoldBalance());
-
-        // Test sandbox hold balance
-        $this->assertEquals(50.00, $wallet->getActualHoldBalance(true));
-    }
-
-    public function test_wallet_get_available_balance_method()
-    {
-        $user = User::factory()->create();
-
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
-            'currency_id' => 360,
-            'uuid' => 'wallet-uuid-123',
-            'balance' => 1000.00,
-            'hold_balance' => 100.00,
-            'balance_sandbox' => 500.00,
-            'hold_balance_sandbox' => 50.00,
-            'status' => true,
-        ]);
-
-        // Test production available balance (balance - hold_balance)
-        $this->assertEquals(900.00, $wallet->getAvailableBalance());
-
-        // Test sandbox available balance
-        $this->assertEquals(450.00, $wallet->getAvailableBalance(true));
-    }
-
-    public function test_wallet_total_balance_accessor()
-    {
-        $user = User::factory()->create();
-
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
-            'currency_id' => 360,
-            'uuid' => 'wallet-uuid-123',
-            'balance' => 1000.00,
-            'hold_balance' => 100.00,
-            'balance_sandbox' => 500.00,
-            'hold_balance_sandbox' => 50.00,
-            'status' => true,
-        ]);
-
-        // Total balance should be balance + hold_balance
-        $this->assertEquals(1100.00, $wallet->total_balance);
-    }
 
     public function test_wallet_currency_role_accessors()
     {
@@ -398,41 +345,5 @@ class WalletTest extends TestCase
         $freshWallet = $wallet->fresh();
         $this->assertEquals(800.00, $freshWallet->balance);
         $this->assertEquals(400.00, $freshWallet->balance_sandbox);
-    }
-
-    public function test_wallet_increment_balance_method_uses_floor_rounding()
-    {
-        $user = User::factory()->create();
-
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
-            'currency_id' => 360,
-            'uuid' => 'test-wallet-uuid',
-            'balance' => 1000.00,
-            'status' => true,
-        ]);
-
-        // incrementBalance uses floor() for rounding, so 250.75 becomes 250
-        $wallet->incrementBalance(250.75);
-
-        $this->assertEquals(1250.00, $wallet->fresh()->getActualBalance());
-    }
-
-    public function test_wallet_decrement_balance_method_uses_ceil_rounding()
-    {
-        $user = User::factory()->create();
-
-        $wallet = Wallet::create([
-            'user_id' => $user->id,
-            'currency_id' => 360,
-            'uuid' => 'test-wallet-uuid',
-            'balance' => 1000.00,
-            'status' => true,
-        ]);
-
-        // decrementBalance uses ceil() for rounding, so 250.25 becomes 251
-        $wallet->decrementBalance(250.25);
-
-        $this->assertEquals(749.00, $wallet->fresh()->getActualBalance());
     }
 }

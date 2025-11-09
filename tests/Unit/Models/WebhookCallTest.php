@@ -10,13 +10,18 @@ class WebhookCallTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['database.webhook_calls_connection' => config('database.default')]);
+    }
+
     public function test_webhook_call_can_be_created_with_required_attributes()
     {
         $webhookData = [
-            'uuid' => 'webhook-uuid-123',
             'name' => 'easylink.callback',
             'url' => 'https://api.example.com/webhook/easylink/callback',
-            'http_verb' => 'POST',
             'headers' => [
                 'Content-Type' => 'application/json',
                 'X-Signature' => 'signature123',
@@ -26,62 +31,49 @@ class WebhookCallTest extends TestCase
                 'status' => 'success',
                 'amount' => 1000.00,
             ],
-            'raw_body' => '{"transaction_id":"TXN123456","status":"success","amount":1000.00}',
-            'meta' => [
-                'gateway' => 'easylink',
-                'processed_at' => '2024-01-01 12:00:00',
-            ],
+            'exception' => null,
+            'trx_id' => 'TXN123456',
         ];
 
         $webhookCall = WebhookCall::create($webhookData);
 
         $this->assertInstanceOf(WebhookCall::class, $webhookCall);
-        $this->assertEquals('webhook-uuid-123', $webhookCall->uuid);
         $this->assertEquals('easylink.callback', $webhookCall->name);
         $this->assertEquals('https://api.example.com/webhook/easylink/callback', $webhookCall->url);
-        $this->assertEquals('POST', $webhookCall->http_verb);
         $this->assertEquals(['Content-Type' => 'application/json', 'X-Signature' => 'signature123'], $webhookCall->headers);
         $this->assertEquals(['transaction_id' => 'TXN123456', 'status' => 'success', 'amount' => 1000.00], $webhookCall->payload);
-        $this->assertEquals('{"transaction_id":"TXN123456","status":"success","amount":1000.00}', $webhookCall->raw_body);
-        $this->assertEquals(['gateway' => 'easylink', 'processed_at' => '2024-01-01 12:00:00'], $webhookCall->meta);
+        $this->assertNull($webhookCall->exception);
+        $this->assertEquals('TXN123456', $webhookCall->trx_id);
     }
 
     public function test_webhook_call_fillable_attributes()
     {
         $webhookCall = new WebhookCall;
-        $expectedFillable = [
-            'uuid',
+        $this->assertEqualsCanonicalizing([
             'name',
             'url',
             'http_verb',
             'headers',
             'payload',
-            'raw_body',
-            'meta',
             'exception',
-        ];
-
-        $this->assertEquals($expectedFillable, $webhookCall->getFillable());
+            'trx_id',
+        ], $webhookCall->getFillable());
     }
 
     public function test_webhook_call_casts()
     {
         $webhookCall = new WebhookCall;
-        $expectedCasts = [
-            'id' => 'int',
-            'headers' => 'array',
-            'payload' => 'array',
-            'meta' => 'array',
-        ];
-
-        $this->assertEquals($expectedCasts, $webhookCall->getCasts());
+        $this->assertArrayHasKey('headers', $webhookCall->getCasts());
+        $this->assertArrayHasKey('payload', $webhookCall->getCasts());
+        $this->assertSame('array', $webhookCall->getCasts()['headers']);
+        $this->assertSame('array', $webhookCall->getCasts()['payload']);
     }
 
-    public function test_webhook_call_uses_mysql_site_connection()
+    public function test_webhook_call_uses_configured_connection()
     {
         $webhookCall = new WebhookCall;
 
-        $this->assertEquals('mysql_site', $webhookCall->getConnectionName());
+        $this->assertEquals(config('database.default'), $webhookCall->getConnectionName());
     }
 
     public function test_webhook_call_can_store_exception_data()
@@ -89,7 +81,6 @@ class WebhookCallTest extends TestCase
         $webhookData = [
             'name' => 'failed.webhook',
             'url' => 'https://api.example.com/webhook/failed',
-            'http_verb' => 'POST',
             'exception' => 'Connection timeout after 30 seconds',
         ];
 
@@ -111,7 +102,6 @@ class WebhookCallTest extends TestCase
         $webhookCall = WebhookCall::create([
             'name' => 'complex.headers',
             'url' => 'https://api.example.com/webhook',
-            'http_verb' => 'POST',
             'headers' => $complexHeaders,
         ]);
 
@@ -148,7 +138,6 @@ class WebhookCallTest extends TestCase
         $webhookCall = WebhookCall::create([
             'name' => 'complex.payload',
             'url' => 'https://api.example.com/webhook',
-            'http_verb' => 'POST',
             'payload' => $complexPayload,
         ]);
 
@@ -158,43 +147,36 @@ class WebhookCallTest extends TestCase
         $this->assertEquals(5.00, $webhookCall->payload['transaction']['fees']['admin_fee']);
     }
 
-    public function test_webhook_call_can_store_meta_information()
+    public function test_webhook_call_can_store_netzme_success_payload()
     {
-        $metaData = [
-            'gateway' => 'netzme',
-            'retry_count' => 3,
-            'last_retry_at' => '2024-01-01 12:30:00',
-            'processing_time_ms' => 250,
-            'response_code' => 200,
-            'response_body' => '{"status":"success"}',
-        ];
+        $payloadPath = base_path('tests/mockups/netzme/success.json');
+        $payload = json_decode((string) file_get_contents($payloadPath), true, 512, JSON_THROW_ON_ERROR);
 
         $webhookCall = WebhookCall::create([
-            'name' => 'meta.test',
-            'url' => 'https://api.example.com/webhook',
-            'http_verb' => 'POST',
-            'meta' => $metaData,
+            'name' => 'netzme',
+            'url' => 'https://api.example.com/webhook/netzme',
+            'payload' => $payload,
+            'trx_id' => $payload['originalPartnerReferenceNo'] ?? null,
         ]);
 
-        $this->assertEquals($metaData, $webhookCall->meta);
-        $this->assertEquals('netzme', $webhookCall->meta['gateway']);
-        $this->assertEquals(3, $webhookCall->meta['retry_count']);
-        $this->assertEquals(250, $webhookCall->meta['processing_time_ms']);
+        $this->assertEquals($payload, $webhookCall->payload);
+        $this->assertEquals('netzme', $webhookCall->name);
+        $this->assertEquals('https://api.example.com/webhook/netzme', $webhookCall->url);
+        $this->assertEquals(
+            $payload['originalPartnerReferenceNo'] ?? null,
+            $webhookCall->trx_id
+        );
     }
 
-    public function test_webhook_call_can_handle_different_http_verbs()
+    public function test_webhook_call_can_store_trx_id()
     {
-        $httpVerbs = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+        $webhookCall = WebhookCall::create([
+            'name' => 'trx.test',
+            'url' => 'https://api.example.com/webhook',
+            'trx_id' => 'TRX-123',
+        ]);
 
-        foreach ($httpVerbs as $verb) {
-            $webhookCall = WebhookCall::create([
-                'name' => "test.{$verb}",
-                'url' => 'https://api.example.com/webhook',
-                'http_verb' => $verb,
-            ]);
-
-            $this->assertEquals($verb, $webhookCall->http_verb);
-        }
+        $this->assertEquals('TRX-123', $webhookCall->trx_id);
     }
 
     public function test_webhook_call_can_be_updated()
@@ -202,16 +184,15 @@ class WebhookCallTest extends TestCase
         $webhookCall = WebhookCall::create([
             'name' => 'update.test',
             'url' => 'https://api.example.com/webhook',
-            'http_verb' => 'POST',
         ]);
 
         $webhookCall->update([
             'exception' => 'Processing failed',
-            'meta' => ['retry_count' => 1],
+            'payload' => ['retry_count' => 1],
         ]);
 
         $this->assertEquals('Processing failed', $webhookCall->exception);
-        $this->assertEquals(['retry_count' => 1], $webhookCall->meta);
+        $this->assertEquals(['retry_count' => 1], $webhookCall->payload);
     }
 
     public function test_webhook_call_timestamps_are_set()
@@ -219,7 +200,6 @@ class WebhookCallTest extends TestCase
         $webhookCall = WebhookCall::create([
             'name' => 'timestamp.test',
             'url' => 'https://api.example.com/webhook',
-            'http_verb' => 'POST',
         ]);
 
         $this->assertNotNull($webhookCall->created_at);
@@ -231,21 +211,16 @@ class WebhookCallTest extends TestCase
         $webhookCall = WebhookCall::create([
             'name' => 'null.test',
             'url' => 'https://api.example.com/webhook',
-            'http_verb' => 'POST',
-            'uuid' => null,
             'headers' => null,
             'payload' => null,
-            'raw_body' => null,
-            'meta' => null,
             'exception' => null,
+            'trx_id' => null,
         ]);
 
-        $this->assertNull($webhookCall->uuid);
         $this->assertNull($webhookCall->headers);
         $this->assertNull($webhookCall->payload);
-        $this->assertNull($webhookCall->raw_body);
-        $this->assertNull($webhookCall->meta);
         $this->assertNull($webhookCall->exception);
+        $this->assertNull($webhookCall->trx_id);
     }
 
     public function test_webhook_call_can_be_deleted()
@@ -253,7 +228,6 @@ class WebhookCallTest extends TestCase
         $webhookCall = WebhookCall::create([
             'name' => 'delete.test',
             'url' => 'https://api.example.com/webhook',
-            'http_verb' => 'POST',
         ]);
 
         $webhookCallId = $webhookCall->id;

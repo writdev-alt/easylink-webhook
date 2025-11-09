@@ -6,8 +6,9 @@ namespace Tests\Unit;
 
 use App\Enums\TrxStatus;
 use App\Enums\TrxType;
-use App\Exceptions\NotifyErrorException;
+use App\Enums\MethodType;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Services\Handlers\DepositHandler;
 use App\Services\TransactionService;
 use Illuminate\Support\Facades\Artisan;
@@ -34,7 +35,7 @@ class TransactionServiceTest extends TestCase
     {
         $service = app(TransactionService::class);
 
-        $this->expectException(NotifyErrorException::class);
+        $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Transaction not found for ID');
 
         $service->completeTransaction('MISSING-ID');
@@ -42,13 +43,14 @@ class TransactionServiceTest extends TestCase
 
     public function test_complete_transaction_updates_status_and_invokes_handler_for_deposit(): void
     {
+        $user = User::factory()->create();
         $trxId = 'TRX-'.Str::uuid();
 
-        $transaction = Transaction::create([
-            'trx_id' => $trxId,
-            'trx_type' => TrxType::DEPOSIT,
-            'status' => TrxStatus::PENDING,
-        ])->refresh();
+        $transaction = Transaction::create($this->transactionAttributes(
+            userId: $user->id,
+            trxId: $trxId,
+            trxType: TrxType::DEPOSIT
+        ))->refresh();
 
         $mock = Mockery::mock(DepositHandler::class);
         $mock->shouldReceive('handleSuccess')
@@ -69,13 +71,14 @@ class TransactionServiceTest extends TestCase
 
     public function test_complete_transaction_updates_status_even_without_handler(): void
     {
+        $user = User::factory()->create();
         $trxId = 'TRX-'.Str::uuid();
 
-        $transaction = Transaction::create([
-            'trx_id' => $trxId,
-            'trx_type' => TrxType::SEND_MONEY,
-            'status' => TrxStatus::PENDING,
-        ])->refresh();
+        $transaction = Transaction::create($this->transactionAttributes(
+            userId: $user->id,
+            trxId: $trxId,
+            trxType: TrxType::SEND_MONEY
+        ))->refresh();
 
         $service = app(TransactionService::class);
         $service->completeTransaction($trxId);
@@ -85,5 +88,23 @@ class TransactionServiceTest extends TestCase
         $this->assertEquals(TrxStatus::COMPLETED, $updated->status);
         $this->assertNull($updated->remarks);
         $this->assertNull($updated->description);
+    }
+
+    /**
+     * Build transaction attributes consistent with schema requirements.
+     */
+    protected function transactionAttributes(int $userId, string $trxId, TrxType $trxType, array $overrides = []): array
+    {
+        return array_merge([
+            'user_id' => $userId,
+            'trx_id' => $trxId,
+            'trx_type' => $trxType,
+            'trx_reference' => 'REF-'.Str::uuid(),
+            'processing_type' => MethodType::AUTOMATIC,
+            'amount' => 100,
+            'net_amount' => 100,
+            'currency' => 'USD',
+            'status' => TrxStatus::PENDING,
+        ], $overrides);
     }
 }

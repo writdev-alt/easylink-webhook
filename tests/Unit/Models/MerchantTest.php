@@ -2,11 +2,15 @@
 
 namespace Tests\Unit\Models;
 
+use App\Constants\CurrencyType;
+use App\Constants\Status;
 use App\Enums\MerchantStatus;
 use App\Models\Merchant;
 use App\Models\MerchantFeature;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MerchantTest extends TestCase
@@ -17,6 +21,20 @@ class MerchantTest extends TestCase
 
         // Use migrations to ensure proper schema (includes extended users columns)
         Artisan::call('migrate:fresh');
+
+        DB::table('currencies')->insert([
+            'name' => 'US Dollar',
+            'code' => 'USD',
+            'symbol' => '$',
+            'type' => CurrencyType::FIAT,
+            'auto_wallet' => 0,
+            'exchange_rate' => 1,
+            'rate_live' => false,
+            'default' => Status::INACTIVE,
+            'status' => Status::INACTIVE,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     protected function tearDown(): void
@@ -30,6 +48,7 @@ class MerchantTest extends TestCase
 
         $merchantData = [
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Test Business',
             'site_url' => 'https://testbusiness.com',
             'currency_id' => 1,
@@ -57,6 +76,7 @@ class MerchantTest extends TestCase
         $merchant = new Merchant;
         $expectedFillable = [
             'user_id',
+            'merchant_key',
             'business_name',
             'site_url',
             'currency_id',
@@ -96,6 +116,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -110,6 +131,7 @@ class MerchantTest extends TestCase
         $agent = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $owner->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -125,6 +147,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -141,6 +164,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -161,6 +185,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -175,6 +200,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -189,6 +215,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -209,6 +236,7 @@ class MerchantTest extends TestCase
 
         $merchantData = [
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Complete Business',
             'site_url' => 'https://completebusiness.com',
             'currency_id' => 1,
@@ -244,6 +272,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
             'status' => MerchantStatus::PENDING,
@@ -258,6 +287,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
             'ma_fee' => '2.5',
@@ -278,6 +308,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Old Name',
             'currency_id' => 1,
         ]);
@@ -292,6 +323,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -305,6 +337,7 @@ class MerchantTest extends TestCase
         $user = User::factory()->create();
         $merchant = Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Biz',
             'currency_id' => 1,
         ]);
@@ -320,6 +353,7 @@ class MerchantTest extends TestCase
         $this->expectException(\Illuminate\Database\QueryException::class);
 
         Merchant::create([
+            'merchant_key' => $this->generateMerchantKey(),
             'business_name' => 'Test Business',
             'site_url' => 'https://testbusiness.com',
             'currency_id' => 1,
@@ -334,8 +368,14 @@ class MerchantTest extends TestCase
 
         Merchant::create([
             'user_id' => $user->id,
+            'merchant_key' => $this->generateMerchantKey(),
             'site_url' => 'https://testbusiness.com',
             'currency_id' => 1,
         ]);
+    }
+
+    protected function generateMerchantKey(): string
+    {
+        return Str::uuid()->toString();
     }
 }

@@ -3,55 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Constants\CurrencyRole;
 
-/**
- * @property int $id
- * @property int|null $created_by
- * @property int|null $updated_by
- * @property int|null $deleted_by
- * @property int $currency_id
- * @property int $user_id
- * @property string $uuid
- * @property float $balance
- * @property float $hold_balance
- * @property float $balance_sandbox
- * @property float $hold_balance_sandbox
- * @property bool $status
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property string|null $deleted_at
- * @property-read bool $is_payment
- * @property-read bool $is_receiver
- * @property-read bool $is_request_money
- * @property-read bool $is_sender
- * @property-read bool $is_withdraw
- * @property-read mixed $latest_transaction
- * @property-read mixed $total_balance
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Transaction> $transactions
- * @property-read int|null $transactions_count
- * @property-read \App\Models\User $user
- *
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereBalance($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereBalanceSandbox($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereCurrencyId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereDeletedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereDeletedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereHoldBalance($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereHoldBalanceSandbox($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereStatus($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUpdatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUserId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUuid($value)
- *
- * @mixin \Eloquent
- */
 class Wallet extends Model
 {
     /**
@@ -155,6 +108,45 @@ class Wallet extends Model
         $fieldName = config('app.mode') === 'sandbox' ? 'hold_balance_sandbox' : 'hold_balance';
 
         return $this->increment('hold_balance', $amount);
+    }
+    /**
+     * Get the is sender attribute for the wallet.
+     */
+    public function getIsSenderAttribute(): bool
+    {
+        return $this->hasCurrencyRole(CurrencyRole::SENDER);
+    }
+
+    /**
+     * Get the is request money attribute for the wallet.
+     */
+    public function getIsRequestMoneyAttribute(): bool
+    {
+        return $this->hasCurrencyRole(CurrencyRole::REQUEST_MONEY);
+    }
+
+    /**
+     * Get the is payment attribute for the wallet.
+     */
+    public function getIsPaymentAttribute(): bool
+    {
+        return $this->hasCurrencyRole(CurrencyRole::PAYMENT);
+    }
+
+    /**
+     * Get the is receiver attribute for the wallet.
+     */
+    public function getIsReceiverAttribute(): bool
+    {
+        return $this->hasCurrencyRole(CurrencyRole::RECEIVER);
+    }
+
+    /**
+     * Get the is withdraw attribute for the wallet.
+     */
+    public function getIsWithdrawAttribute(): bool
+    {
+        return $this->hasCurrencyRole(CurrencyRole::WITHDRAW);
     }
 
     /**

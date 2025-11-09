@@ -32,6 +32,13 @@ class NetzmePaymentGateway implements PaymentGateway
         if ($transaction = Transaction::where('trx_id', $request->originalPartnerReferenceNo)
             ->whereIn('trx_type', [TrxType::RECEIVE_PAYMENT, TrxType::DEPOSIT])
             ->first()) {
+            $data = array_merge($transaction->trx_data ?? [], [
+                'netzme_ipn_response' => $request->toArray() ?? [],
+            ]);
+
+            $transaction->update(['trx_data' => $data]);
+            $transaction->save();
+            $transaction->refresh();
             // Use the originally created instance if available to match test expectations
             $original = Transaction::getRegisteredInstance($request->originalPartnerReferenceNo) ?? $transaction;
             // If success, complete and send second webhook using same instance

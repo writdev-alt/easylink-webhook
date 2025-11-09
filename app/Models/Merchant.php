@@ -77,6 +77,7 @@ class Merchant extends Model
      */
     protected $fillable = [
         'user_id',
+        'merchant_key',
         'business_name',
         'site_url',
         'currency_id',

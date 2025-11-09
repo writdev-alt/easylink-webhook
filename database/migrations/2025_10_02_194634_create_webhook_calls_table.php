@@ -16,9 +16,14 @@ return new class extends Migration
             $table->json('headers')->nullable();
             $table->json('payload')->nullable();
             $table->text('exception')->nullable();
-            $table->foreignId('trx_id')->constrained('transactions');
+            $table->string('trx_id')->nullable()->index();
 
             $table->timestamps();
         });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('webhook_calls');
     }
 };
