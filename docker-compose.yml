@@ -1,0 +1,125 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-wrpay-app
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+      - ./bootstrap/cache:/app/bootstrap/cache
+      - /app/vendor
+    env_file:
+      - env.docker
+    environment:
+      - DB_HOST=mysql
+      - DB_HOST_SITE=mysql
+      - REDIS_HOST=redis
+      - ELK_HOST=http://elasticsearch:9200
+      - ELK_HOST_IP=elasticsearch:9200
+      - OCTANE_SERVER=frankenphp
+      - OCTANE_WORKERS=${OCTANE_WORKERS:-4}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+    networks:
+      - worker-wrpay-network
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker-wrpay-queue
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3 --timeout=90 --queue=webhooks,default
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+      - /app/vendor
+    env_file:
+      - env.docker
+    environment:
+      - DB_HOST=mysql
+      - DB_HOST_SITE=mysql
+      - REDIS_HOST=redis
+      - ELK_HOST=http://elasticsearch:9200
+      - ELK_HOST_IP=elasticsearch:9200
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+    networks:
+      - worker-wrpay-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: worker-wrpay-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    env_file:
+      - env.docker
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE:-wrpay_base}
+      - MYSQL_USER=${MYSQL_USER:-worker_wrpay}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-password}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - worker-wrpay-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: worker-wrpay-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - worker-wrpay-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: worker-wrpay-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - worker-wrpay-network
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  worker-wrpay-network:
+    driver: bridge
+
