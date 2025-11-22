@@ -3,6 +3,14 @@ set -e
 
 echo "Starting application..."
 
+# Create empty .env file if it doesn't exist (Laravel expects it)
+# Cloud Run uses environment variables directly, but Laravel still tries to load .env
+if [ ! -f /app/.env ]; then
+    echo "Creating empty .env file for Laravel..."
+    touch /app/.env
+    chmod 644 /app/.env
+fi
+
 # Clear config cache (if exists) to allow env variables to be used
 php artisan config:clear || true
 php artisan cache:clear || true

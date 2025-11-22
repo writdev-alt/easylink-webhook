@@ -34,6 +34,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copy application files
 COPY . /app
 
+# Create empty .env file for Laravel (Cloud Run uses environment variables)
+# This prevents Laravel from trying to read a non-existent .env file
+RUN touch /app/.env && chmod 644 /app/.env
+
 # Copy and set up entrypoint script
 COPY docker-entrypoint-cloudrun.sh /usr/local/bin/docker-entrypoint.sh
 COPY start-octane.sh /usr/local/bin/start-octane.sh

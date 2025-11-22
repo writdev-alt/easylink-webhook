@@ -27,6 +27,9 @@ $ImageName = "gcr.io/$ProjectId/$ServiceName"
 $ImageNameWithTag = "$ImageName:latest"
 $CloudSqlConnectionName = "$ProjectId`:$Region`:$CloudSqlInstance"
 
+# Ensure ImageName is clean (no trailing slashes or colons)
+$ImageName = $ImageName.TrimEnd(":", "/")
+
 # Function to load environment variables from .env file
 function Load-EnvFile {
     param([string]$FilePath)
@@ -101,7 +104,14 @@ foreach ($api in $apis) {
 # Build the Docker image
 Write-Host "Building Docker image..." -ForegroundColor Yellow
 Write-Host "Image name: $ImageName" -ForegroundColor Gray
-gcloud builds submit --config cloudbuild-build.yaml --substitutions "_IMAGE_NAME=$ImageName" --project $ProjectId
+
+# Build with substitutions
+# Cloud Build substitutions format: KEY=VALUE
+# Pass the full image name with :latest tag in the substitution
+Write-Host "Substituting _IMAGE_NAME with: $ImageNameWithTag" -ForegroundColor Gray
+
+# Use --substitutions with KEY=VALUE format (pass image name with :latest tag)
+gcloud builds submit --config cloudbuild-build.yaml --substitutions "_IMAGE_NAME=$ImageNameWithTag" --project $ProjectId
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to build Docker image" -ForegroundColor Red
     exit 1

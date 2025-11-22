@@ -6,13 +6,13 @@ steps:
       - '-f'
       - 'Dockerfile.cloudrun'
       - '-t'
-      - '${_IMAGE_NAME}:latest'
+      - '${_IMAGE_NAME}'
       - '-t'
       - '${_IMAGE_NAME}:${SHORT_SHA}'
       - '.'
 
 images:
-  - '${_IMAGE_NAME}:latest'
+  - '${_IMAGE_NAME}'
   - '${_IMAGE_NAME}:${SHORT_SHA}'
 
 options:

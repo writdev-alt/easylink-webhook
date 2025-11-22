@@ -42,7 +42,10 @@ gcloud services enable sqladmin.googleapis.com
 
 # Build the Docker image
 echo "Building Docker image..."
-gcloud builds submit --config cloudbuild-build.yaml --substitutions "_IMAGE_NAME=$IMAGE_NAME"
+echo "Image name: $IMAGE_NAME"
+IMAGE_NAME_WITH_TAG="${IMAGE_NAME}:latest"
+echo "Image name with tag: $IMAGE_NAME_WITH_TAG"
+gcloud builds submit --config cloudbuild-build.yaml --substitutions "_IMAGE_NAME=$IMAGE_NAME_WITH_TAG"
 
 # Deploy to Cloud Run with Cloud SQL connection
 echo "Deploying to Cloud Run with Cloud SQL connection..."
