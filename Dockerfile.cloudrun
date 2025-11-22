@@ -36,7 +36,9 @@ COPY . /app
 
 # Copy and set up entrypoint script
 COPY docker-entrypoint-cloudrun.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY start-octane.sh /usr/local/bin/start-octane.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chmod +x /usr/local/bin/start-octane.sh
 
 # Set permissions
 RUN chown -R www-data:www-data /app \
@@ -46,9 +48,8 @@ RUN chown -R www-data:www-data /app \
 # Install dependencies (production only)
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Optimize Laravel for production
-RUN php artisan config:cache || true \
-    && php artisan route:cache || true \
+# Optimize Laravel for production (skip config cache - requires DB at runtime)
+RUN php artisan route:cache || true \
     && php artisan view:cache || true
 
 # Expose port (Cloud Run will set PORT env variable)
@@ -59,5 +60,5 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start Laravel Octane with FrankenPHP
 # Cloud Run sets PORT environment variable dynamically
-CMD ["sh", "-c", "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=${PORT:-8080} --admin-port=$((${PORT:-8080}+1))"]
+CMD ["start-octane.sh"]
 

@@ -1,15 +1,19 @@
 #!/bin/sh
 set -e
 
-# Wait for database connection (skip if DB_HOST is not set)
+echo "Starting application..."
+
+# Clear config cache (if exists) to allow env variables to be used
+php artisan config:clear || true
+php artisan cache:clear || true
+
+# Quick database connection check (non-blocking for Cloud Run)
 if [ -n "$DB_HOST" ] && [ "$DB_HOST" != "" ]; then
-    echo "Waiting for database connection..."
+    echo "Checking database connection..."
     echo "DB_HOST: $DB_HOST"
-    max_attempts=30
-    attempt=0
     
     # Determine if using Unix socket (Cloud SQL) or TCP connection
-    if [[ "$DB_HOST" == /cloudsql/* ]]; then
+    if echo "$DB_HOST" | grep -q "^/cloudsql/"; then
         # Unix socket connection (Cloud SQL)
         DB_SOCKET="$DB_HOST"
         DB_CONNECTION_STRING="mysql:unix_socket=$DB_SOCKET;dbname=${DB_DATABASE:-}"
@@ -20,41 +24,31 @@ if [ -n "$DB_HOST" ] && [ "$DB_HOST" != "" ]; then
         DB_CONNECTION_STRING="mysql:host=$DB_HOST_ADDR;port=$DB_PORT;dbname=${DB_DATABASE:-}"
     fi
     
-    while [ $attempt -lt $max_attempts ]; do
-        if php -r "
-        try {
-            \$pdo = new PDO('$DB_CONNECTION_STRING', '${DB_USERNAME}', '${DB_PASSWORD}');
-            \$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            \$pdo->exec('SELECT 1');
-            exit(0);
-        } catch (Exception \$e) {
-            exit(1);
-        }
-        " 2>/dev/null; then
-            echo "Database is up!"
-            break
-        fi
-        
-        attempt=$((attempt + 1))
-        if [ $((attempt % 5)) -eq 0 ]; then
-            echo "Database is unavailable - attempt $attempt/$max_attempts - sleeping"
-        fi
-        sleep 2
-    done
-    
-    if [ $attempt -lt $max_attempts ]; then
+    # Quick check (max 10 seconds for Cloud Run)
+    if php -r "
+    try {
+        \$pdo = new PDO('$DB_CONNECTION_STRING', '${DB_USERNAME}', '${DB_PASSWORD}', [
+            PDO::ATTR_TIMEOUT => 5,
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ]);
+        \$pdo->exec('SELECT 1');
+        exit(0);
+    } catch (Exception \$e) {
+        exit(1);
+    }
+    " 2>/dev/null; then
+        echo "Database connection verified!"
         # Run migrations if database is available
         echo "Running migrations..."
         php artisan migrate --force || true
+    else
+        echo "Warning: Database connection check failed. Continuing anyway..."
+        echo "The application will retry database connections on first request."
     fi
 fi
 
-# Clear and optimize config for production
-php artisan config:clear || true
-php artisan cache:clear || true
-php artisan config:cache || true
-
 echo "Application is ready!"
 
+# Execute the command passed as arguments (start-octane.sh)
 exec "$@"
 

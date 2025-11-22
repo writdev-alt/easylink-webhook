@@ -33,4 +33,8 @@ storage/testing
 !README.md
 docker-entrypoint.sh
 env.docker
+# Keep Cloud Run specific files
+!docker-entrypoint-cloudrun.sh
+!start-octane.sh
+!Dockerfile.cloudrun
 
