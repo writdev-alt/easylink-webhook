@@ -1,0 +1,63 @@
+FROM dunglas/frankenphp:latest
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    libzip-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN install-php-extensions \
+    pdo_mysql \
+    pdo_sqlite \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    intl \
+    opcache
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copy application files
+COPY . /app
+
+# Copy and set up entrypoint script
+COPY docker-entrypoint-cloudrun.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Set permissions
+RUN chown -R www-data:www-data /app \
+    && chmod -R 755 /app/storage \
+    && chmod -R 755 /app/bootstrap/cache
+
+# Install dependencies (production only)
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Optimize Laravel for production
+RUN php artisan config:cache || true \
+    && php artisan route:cache || true \
+    && php artisan view:cache || true
+
+# Expose port (Cloud Run will set PORT env variable)
+EXPOSE 8080
+
+# Use entrypoint script
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+# Start Laravel Octane with FrankenPHP
+# Cloud Run sets PORT environment variable dynamically
+CMD ["sh", "-c", "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=${PORT:-8080} --admin-port=$((${PORT:-8080}+1))"]
+
