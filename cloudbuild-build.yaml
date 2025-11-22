@@ -1,0 +1,20 @@
+steps:
+  # Build the container image with custom Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.cloudrun'
+      - '-t'
+      - '${_IMAGE_NAME}:latest'
+      - '-t'
+      - '${_IMAGE_NAME}:${SHORT_SHA}'
+      - '.'
+
+images:
+  - '${_IMAGE_NAME}:latest'
+  - '${_IMAGE_NAME}:${SHORT_SHA}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+

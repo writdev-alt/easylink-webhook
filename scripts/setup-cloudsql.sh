@@ -6,14 +6,14 @@
 set -e
 
 PROJECT_ID=${1:-""}
-REGION=${2:-"us-central1"}
+REGION=${2:-"asia-southeast1"}
 INSTANCE_NAME=${3:-"base-image"}
 SERVICE_NAME="webhook"
 
 if [ -z "$PROJECT_ID" ]; then
     echo "Error: Project ID is required"
     echo "Usage: ./setup-cloudsql.sh [project-id] [region] [instance-name]"
-    echo "Example: ./setup-cloudsql.sh my-project-id us-central1 base-image"
+    echo "Example: ./setup-cloudsql.sh my-project-id asia-southeast1 base-image"
     exit 1
 fi
 

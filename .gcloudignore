@@ -30,11 +30,15 @@ Dockerfile
 tests
 storage/testing
 *.md
-!README.md
+docs/
 docker-entrypoint.sh
 env.docker
+.env.cloudrun
+.env.*.local
+scripts/
 # Keep Cloud Run specific files
 !docker-entrypoint-cloudrun.sh
 !start-octane.sh
 !Dockerfile.cloudrun
+!cloudbuild-build.yaml
 

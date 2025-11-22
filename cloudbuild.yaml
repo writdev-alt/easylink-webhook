@@ -28,7 +28,7 @@ steps:
       - '--image'
       - 'gcr.io/$PROJECT_ID/webhook:$SHORT_SHA'
       - '--region'
-      - 'us-central1'
+      - 'asia-southeast1'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
@@ -47,9 +47,9 @@ steps:
       - '--concurrency'
       - '80'
       - '--add-cloudsql-instances'
-      - '$PROJECT_ID:us-central1:base-image'
+      - '$PROJECT_ID:asia-southeast1:base-image'
       - '--set-env-vars'
-      - 'APP_ENV=production,DB_HOST=/cloudsql/$PROJECT_ID:us-central1:base-image,DB_DATABASE=base'
+      - 'APP_ENV=production,DB_HOST=/cloudsql/$PROJECT_ID:asia-southeast1:base-image,DB_DATABASE=base'
 
 images:
   - 'gcr.io/$PROJECT_ID/webhook:latest'
