@@ -1,22 +1,25 @@
+# Google Cloud Build configuration for Cloud Run deployment
+# This file is used by Cloud Build to build and deploy your application
+
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: 
+    args:
       - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/${_SERVICE_NAME}:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/${_SERVICE_NAME}:latest'
       - '-f'
-      - 'Dockerfile.cloudrun'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/webhook:latest'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/webhook:$SHORT_SHA'
+      - 'Dockerfile'
       - '.'
 
-  # Push the container image to Container Registry
+  # Push the container image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/webhook:$SHORT_SHA']
-  
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/webhook:latest']
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/${_SERVICE_NAME}'
 
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -24,38 +27,64 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'webhook'
+      - '${_SERVICE_NAME}'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/webhook:$SHORT_SHA'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/${_SERVICE_NAME}:${SHORT_SHA}'
       - '--region'
-      - 'asia-southeast1'
+      - '${_REGION}'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
       - '--port'
-      - '8080'
+      - '${_PORT:-8080}'
       - '--memory'
-      - '512Mi'
+      - '${_MEMORY:-2Gi}'
       - '--cpu'
-      - '1'
+      - '${_CPU:-2}'
       - '--min-instances'
-      - '0'
+      - '${_MIN_INSTANCES:-0}'
       - '--max-instances'
-      - '10'
+      - '${_MAX_INSTANCES:-10}'
       - '--timeout'
-      - '300'
+      - '${_TIMEOUT:-300}'
       - '--concurrency'
-      - '80'
-      - '--add-cloudsql-instances'
-      - '$PROJECT_ID:asia-southeast1:base-image'
+      - '${_CONCURRENCY:-80}'
       - '--set-env-vars'
-      - 'APP_ENV=production,DB_HOST=/cloudsql/$PROJECT_ID:asia-southeast1:base-image,DB_DATABASE=base'
+      - 'APP_ENV=production,APP_DEBUG=false'
+      - '--add-cloudsql-instances'
+      - '${PROJECT_ID}:${_REGION}:${_CLOUD_SQL_INSTANCE}'
+      - '--set-secrets'
+      - 'APP_KEY=app-key:latest,DB_PASSWORD=db-password:latest,DB_PASSWORD_SITE=db-password-site:latest,HEALTH_CHECK_API_KEY=health-check-api-key:latest'
+      - '--vpc-connector'
+      - '${_VPC_CONNECTOR}'
+      - '--vpc-egress'
+      - 'private-ranges-only'
 
+# Substitution variables (can be overridden via gcloud command or Cloud Build triggers)
+substitutions:
+  _REGION: 'asia-southeast1'
+  _ARTIFACT_REGISTRY_REPO: 'webhook'
+  _SERVICE_NAME: 'webhook-api'
+  _PORT: '8080'
+  _MEMORY: '2Gi'
+  _CPU: '2'
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '10'
+  _TIMEOUT: '300'
+  _CONCURRENCY: '80'
+  _CLOUD_SQL_INSTANCE: 'base-database'
+  _VPC_CONNECTOR: 'ilonapay-connector'
+
+# Images to be pushed to the registry
 images:
-  - 'gcr.io/$PROJECT_ID/webhook:latest'
-  - 'gcr.io/$PROJECT_ID/webhook:$SHORT_SHA'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/${_SERVICE_NAME}:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REGISTRY_REPO}/${_SERVICE_NAME}:latest'
 
+# Options
 options:
-  logging: CLOUD_LOGGING_ONLY
   machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+# Timeout for the entire build
+timeout: '1200s'
 
