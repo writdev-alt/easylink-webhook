@@ -49,7 +49,7 @@ class TriggerTransactionWebhookCommand extends Command
         $message = $this->option('message');
         $rrn = $this->option('rrn') ?: Arr::get($transaction->trx_data ?? [], 'rrn');
 
-        Log::channel('webhook')->info('Console webhook trigger initiated', [
+        Log::info('Console webhook trigger initiated', [
             'trx_id' => $transaction->trx_id,
             'trx_type' => $transaction->trx_type->value,
             'triggered_by' => 'console',
@@ -62,7 +62,7 @@ class TriggerTransactionWebhookCommand extends Command
                 default => $webhookService->sendGenericWebhook($transaction, $message),
             };
         } catch (\Throwable $exception) {
-            Log::channel('webhook')->error('Console webhook trigger failed', [
+            Log::error('Console webhook trigger failed', [
                 'trx_id' => $transaction->trx_id,
                 'trx_type' => $transaction->trx_type->value,
                 'error' => $exception->getMessage(),

@@ -35,9 +35,9 @@ class LogWebhookCallSucceededListener
                 ];
             }
 
-            Log::channel('webhook')->info('Webhook call succeeded', $logData);
+            Log::info('Webhook call succeeded', $logData);
         } catch (\Throwable $e) {
-            Log::channel('webhook')->error('Error logging webhook call success', [
+            Log::error('Error logging webhook call success', [
                 'error' => $e->getMessage(),
                 'class' => get_class($e),
             ]);

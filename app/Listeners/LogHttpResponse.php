@@ -36,14 +36,14 @@ class LogHttpResponse implements ShouldQueue
         try {
             $request = $event->request;
 
-            Log::channel('http-requests')->info('Outgoing HTTP Request Sent', [
+            Log::info('Outgoing HTTP Request Sent', [
                 'method' => $request->method(),
                 'url' => $request->url(),
                 'headers' => $this->serializeHeaders($request->headers()),
                 'body' => $this->serializeBody($request->data()),
             ]);
         } catch (\Throwable $e) {
-            Log::channel('http-requests')->warning('Failed to log HTTP request', [
+            Log::warning('Failed to log HTTP request', [
                 'error' => $e->getMessage(),
                 'url' => $event->request->url() ?? 'unknown',
             ]);
@@ -56,14 +56,14 @@ class LogHttpResponse implements ShouldQueue
             $request = $event->request;
             $response = $event->response;
 
-            Log::channel('http-responses')->info('Outgoing HTTP Response Received', [
+            Log::info('Outgoing HTTP Response Received', [
                 'method' => $request->method(),
                 'url' => $request->url(),
                 'status' => $response->status(),
                 'response_body' => $this->serializeBody($response),
             ]);
         } catch (\Throwable $e) {
-            Log::channel('http-responses')->warning('Failed to log HTTP response', [
+            Log::warning('Failed to log HTTP response', [
                 'error' => $e->getMessage(),
                 'url' => $event->request->url() ?? 'unknown',
             ]);

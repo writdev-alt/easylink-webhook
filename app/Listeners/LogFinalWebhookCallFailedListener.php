@@ -39,9 +39,9 @@ class LogFinalWebhookCallFailedListener
                 ];
             }
 
-            Log::channel('webhook')->critical('Final webhook call failed - all retries exhausted', $logData);
+            Log::critical('Final webhook call failed - all retries exhausted', $logData);
         } catch (\Throwable $e) {
-            Log::channel('webhook')->error('Error logging final webhook call failure', [
+            Log::error('Error logging final webhook call failure', [
                 'error' => $e->getMessage(),
                 'class' => get_class($e),
             ]);
