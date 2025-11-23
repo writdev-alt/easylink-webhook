@@ -48,7 +48,7 @@ class NetzmePaymentGateway implements PaymentGateway
                     $description = $transaction->trx_type === TrxType::DEPOSIT
                         ? 'Deposit completed via QRIS IPN'
                         : 'Receive Payment completed via QRIS IPN';
-                    app(TransactionService::class)->completeTransaction($request->originalPartnerReferenceNo, 'Transaction completed via Netzme IPN', $description);
+                    app(TransactionService::class)->completeTransaction($request->originalPartnerReferenceNo, 'Transaction completed via QRIS IPN', $description);
                     app(WebhookService::class)->sendPaymentReceiveWebhook($original, $rrn, $description);
                 }
 
