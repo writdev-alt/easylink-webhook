@@ -19,5 +19,12 @@ class EventServiceProvider extends ServiceProvider
         \Spatie\WebhookServer\Events\WebhookCallSucceededEvent::class => [
             \App\Listeners\LogWebhookCallSucceededListener::class,
         ],
+        \Illuminate\Http\Client\Events\RequestSending::class => [
+            \App\Listeners\LogHttpResponse::class,
+        ],
+
+        \Illuminate\Http\Client\Events\ResponseReceived::class => [
+            \App\Listeners\LogHttpResponse::class,
+        ],
     ];
 }
