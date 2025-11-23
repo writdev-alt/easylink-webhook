@@ -2,12 +2,12 @@
 
 namespace Tests\Unit\Models;
 
+use App\Constants\CurrencyType;
 use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
-use App\Constants\CurrencyType;
+use Tests\TestCase;
 
 class WalletTest extends TestCase
 {
@@ -119,9 +119,6 @@ class WalletTest extends TestCase
             $wallet->transactions()
         );
     }
-
-
-
 
     public function test_wallet_currency_role_accessors()
     {

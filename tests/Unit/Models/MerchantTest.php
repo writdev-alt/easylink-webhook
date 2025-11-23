@@ -8,8 +8,8 @@ use App\Enums\MerchantStatus;
 use App\Models\Merchant;
 use App\Models\MerchantFeature;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 

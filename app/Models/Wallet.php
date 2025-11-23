@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Constants\CurrencyRole;
+use Illuminate\Database\Eloquent\Model;
 
 class Wallet extends Model
 {
@@ -109,6 +109,7 @@ class Wallet extends Model
 
         return $this->increment('hold_balance', $amount);
     }
+
     /**
      * Get the is sender attribute for the wallet.
      */

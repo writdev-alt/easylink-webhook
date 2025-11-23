@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Constants\CurrencyType;
-use App\Exceptions\NotifyErrorException;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\WalletService;

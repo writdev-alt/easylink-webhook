@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Enums\MethodType;
 use App\Enums\TrxStatus;
 use App\Enums\TrxType;
-use App\Enums\MethodType;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Handlers\DepositHandler;
