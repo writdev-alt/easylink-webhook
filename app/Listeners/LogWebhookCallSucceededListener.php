@@ -34,6 +34,10 @@ class LogWebhookCallSucceededListener
                     'body' => method_exists($response, 'getBody') ? (string) $response->getBody() : null,
                 ];
             }
+            activity()
+                ->performedOn($webhookCall)
+                ->withProperties($logData)
+                ->log('Webhook call succeeded');
 
             Log::info('Webhook call succeeded', $logData);
         } catch (\Throwable $e) {

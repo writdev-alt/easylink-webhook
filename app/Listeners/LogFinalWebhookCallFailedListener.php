@@ -38,6 +38,10 @@ class LogFinalWebhookCallFailedListener
                     'trace' => $exception->getTraceAsString(),
                 ];
             }
+            activity()
+                ->performedOn($webhookCall)
+                ->withProperties($logData)
+                ->log('Final webhook call failed - all retries exhausted');
 
             Log::critical('Final webhook call failed - all retries exhausted', $logData);
         } catch (\Throwable $e) {

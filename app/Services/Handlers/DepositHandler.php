@@ -18,8 +18,7 @@ class DepositHandler implements SuccessHandlerInterface
 
         $wallet = app(WalletService::class)->addMoneyByWalletUuid($transaction->wallet_reference, $transaction->net_amount);
         if ($wallet) {
-            UpdateTransactionStatJob::dispatch($transaction->merchant, $transaction->net_amount, $transaction->trx_type);
-            UpdateTransactionStatJob::dispatch($transaction->user, $transaction->net_amount, $transaction->trx_type);
+            UpdateTransactionStatJob::dispatch($transaction);
 
             return true;
         }

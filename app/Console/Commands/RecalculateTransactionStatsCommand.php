@@ -63,6 +63,7 @@ class RecalculateTransactionStatsCommand extends Command
         DB::transaction(function () use ($statusFilter, $chunkSize, &$totalGroups, &$totalInserted): void {
             TransactionStat::query()->delete();
 
+            // First, insert transaction type rows
             foreach ($this->statDimensions() as $dimension) {
                 $this->buildAggregationQuery($statusFilter, $dimension['column'])
                     ->orderBy($dimension['column'])
@@ -85,6 +86,7 @@ class RecalculateTransactionStatsCommand extends Command
                                 continue;
                             }
 
+                            // Add transaction type row with payable_amount
                             $insertRows[] = [
                                 'model_id' => (int) $row->model_id,
                                 'model_type' => $dimension['model'],
@@ -94,6 +96,44 @@ class RecalculateTransactionStatsCommand extends Command
                                 'created_at' => $now,
                                 'updated_at' => $now,
                             ];
+                        }
+
+                        if (! empty($insertRows)) {
+                            TransactionStat::query()->insert($insertRows);
+                            $totalInserted += count($insertRows);
+                        }
+                    });
+            }
+
+            // Then, insert fee type rows aggregated across all transaction types
+            foreach ($this->statDimensions() as $dimension) {
+                $this->buildFeeAggregationQuery($statusFilter, $dimension['column'])
+                    ->orderBy($dimension['column'])
+                    ->chunk($chunkSize, function (Collection $chunk) use (&$totalInserted, $dimension): void {
+                        $insertRows = [];
+                        $now = now();
+
+                        foreach ($chunk as $row) {
+                            $feeTypes = [
+                                'mdr_fee' => (int) $row->total_mdr_fee,
+                                'admin_fee' => (int) $row->total_admin_fee,
+                                'agent_fee' => (int) $row->total_agent_fee,
+                                'cashback_fee' => (int) $row->total_cashback_fee,
+                            ];
+
+                            foreach ($feeTypes as $feeType => $feeAmount) {
+                                if ($feeAmount > 0) {
+                                    $insertRows[] = [
+                                        'model_id' => (int) $row->model_id,
+                                        'model_type' => $dimension['model'],
+                                        'type' => $feeType,
+                                        'total_transactions' => (int) $row->total_transactions,
+                                        'total_amount' => $feeAmount,
+                                        'created_at' => $now,
+                                        'updated_at' => $now,
+                                    ];
+                                }
+                            }
                         }
 
                         if (! empty($insertRows)) {
@@ -137,7 +177,7 @@ class RecalculateTransactionStatsCommand extends Command
     }
 
     /**
-     * Build the base aggregation query.
+     * Build the base aggregation query for transaction types.
      */
     protected function buildAggregationQuery(string $statusFilter, string $groupColumn): Builder
     {
@@ -147,7 +187,7 @@ class RecalculateTransactionStatsCommand extends Command
 
         $query = $connection->table($table)
             ->select($groupColumn.' as model_id', 'trx_type')
-            ->selectRaw('SUM(COALESCE(net_amount, 0)) as total_net_amount')
+            ->selectRaw('SUM(COALESCE(payable_amount, 0)) as total_net_amount')
             ->selectRaw('COUNT(*) as total_transactions')
             ->whereNotNull($groupColumn)
             ->whereNotNull('trx_type')
@@ -163,25 +203,90 @@ class RecalculateTransactionStatsCommand extends Command
     }
 
     /**
+     * Build the fee aggregation query (aggregated across all transaction types).
+     */
+    protected function buildFeeAggregationQuery(string $statusFilter, string $groupColumn): Builder
+    {
+        $model = new Transaction;
+        $connection = $model->getConnection();
+        $table = $model->getTable();
+
+        $query = $connection->table($table)
+            ->select($groupColumn.' as model_id')
+            ->selectRaw('SUM(COALESCE(mdr_fee, 0)) as total_mdr_fee')
+            ->selectRaw('SUM(COALESCE(admin_fee, 0)) as total_admin_fee')
+            ->selectRaw('SUM(COALESCE(agent_fee, 0)) as total_agent_fee')
+            ->selectRaw('SUM(COALESCE(cashback_fee, 0)) as total_cashback_fee')
+            ->selectRaw('COUNT(*) as total_transactions')
+            ->whereNotNull($groupColumn)
+            ->whereNotNull('trx_type')
+            ->groupBy($groupColumn);
+
+        if ($statusFilter !== '' && strtolower($statusFilter) !== 'all') {
+            $statusEnum = TrxStatus::tryFrom($statusFilter);
+            $status = $statusEnum ? $statusEnum->value : $statusFilter;
+            $query->where('status', $status);
+        }
+
+        return $query;
+    }
+
+    /**
      * Preview the aggregation results in a table.
      */
     protected function previewAggregation(string $statusFilter, int $chunkSize): void
     {
-        $headers = ['Model Type', 'Model ID', 'Transaction Type', 'Total Transactions', 'Total Net Amount'];
+        $headers = ['Model Type', 'Model ID', 'Type', 'Total Transactions', 'Total Amount'];
         $rows = [];
 
+        // Preview transaction type rows
         foreach ($this->statDimensions() as $dimension) {
             $this->buildAggregationQuery($statusFilter, $dimension['column'])
                 ->orderBy($dimension['column'])
                 ->chunk($chunkSize, function (Collection $chunk) use (&$rows, $dimension): void {
                     foreach ($chunk as $row) {
+                        $trxType = TrxType::tryFrom((string) $row->trx_type);
+                        
+                        if (! $trxType) {
+                            continue;
+                        }
+
+                        // Add transaction type row
                         $rows[] = [
                             $dimension['label'],
                             (int) $row->model_id,
-                            $row->trx_type,
+                            $trxType->value,
                             (int) $row->total_transactions,
                             $row->total_net_amount,
                         ];
+                    }
+                });
+        }
+
+        // Preview fee type rows
+        foreach ($this->statDimensions() as $dimension) {
+            $this->buildFeeAggregationQuery($statusFilter, $dimension['column'])
+                ->orderBy($dimension['column'])
+                ->chunk($chunkSize, function (Collection $chunk) use (&$rows, $dimension): void {
+                    foreach ($chunk as $row) {
+                        $feeTypes = [
+                            'mdr_fee' => $row->total_mdr_fee,
+                            'admin_fee' => $row->total_admin_fee,
+                            'agent_fee' => $row->total_agent_fee,
+                            'cashback_fee' => $row->total_cashback_fee,
+                        ];
+
+                        foreach ($feeTypes as $feeType => $feeAmount) {
+                            if ($feeAmount > 0) {
+                                $rows[] = [
+                                    $dimension['label'],
+                                    (int) $row->model_id,
+                                    $feeType,
+                                    (int) $row->total_transactions,
+                                    $feeAmount,
+                                ];
+                            }
+                        }
                     }
                 });
         }

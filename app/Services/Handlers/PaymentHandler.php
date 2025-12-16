@@ -20,10 +20,9 @@ class PaymentHandler implements SuccessHandlerInterface
         if ($transaction->trx_type === TrxType::RECEIVE_PAYMENT) {
             $wallet = Wallet::where('uuid', $transaction->wallet_reference)->first();
             if ($wallet) {
-                $amount = $transaction->net_amount;
+                $amount = $transaction->payable_amount;
 
-                UpdateTransactionStatJob::dispatch($transaction->merchant, $amount, $transaction->trx_type);
-                UpdateTransactionStatJob::dispatch($transaction->user, $amount, $transaction->trx_type);
+                UpdateTransactionStatJob::dispatch($transaction);
 
                 return $wallet->addToHoldBalance($amount);
             }

@@ -37,6 +37,9 @@ COPY . .
 RUN chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
+# Clear package discovery cache to remove references to dev packages
+RUN rm -f bootstrap/cache/packages.php bootstrap/cache/services.php 2>/dev/null || true
+
 # Generate optimized autoloader (skip scripts to avoid Laravel bootstrap issues)
 RUN composer dump-autoload --optimize --classmap-authoritative --no-scripts
 
@@ -60,6 +63,7 @@ php artisan config:clear 2>/dev/null || true\n\
 php artisan cache:clear 2>/dev/null || true\n\
 php artisan route:clear 2>/dev/null || true\n\
 php artisan view:clear 2>/dev/null || true\n\
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php 2>/dev/null || true\n\
 \n\
 # Optimize Laravel for production (these may fail if DB is not available, but that'\''s OK)\n\
 # We'\''ll cache config, routes, and views which don'\''t require DB connection\n\

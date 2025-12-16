@@ -37,8 +37,7 @@ class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface
             (float) $transaction->payable_amount
         );
 
-        UpdateTransactionStatJob::dispatch($transaction->merchant, $transaction->net_amount, $transaction->trx_type);
-        UpdateTransactionStatJob::dispatch($transaction->user, $transaction->net_amount, $transaction->trx_type);
+        UpdateTransactionStatJob::dispatch($transaction);
         // Notify webhook as completed
         app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal completed');
 

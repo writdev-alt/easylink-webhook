@@ -13,14 +13,11 @@ return new class extends Migration
     {
 
         Schema::create('transaction_stats', function (Blueprint $table) {
-            $types = \App\Enums\TrxType::cases();
-            $types = array_map(fn (\App\Enums\TrxType $case) => $case->value, $types);
-
             $table->id();
             $table->morphs('model');
             $table->unsignedBigInteger('total_transactions')->default(0);
             $table->unsignedBigInteger('total_amount')->default(0);
-            $table->enum('type', $types);
+            $table->string('type')->nullable();
             $table->timestamps();
 
             $table->unique(['model_id', 'model_type', 'type']);
