@@ -33,15 +33,16 @@ class TransactionService
      * Includes IPN notifications for merchant payments and event dispatching.
      *
      * @param  string  $trxId  The unique ID of the transaction
-     * @param  string|null  $remarks  Optional remarks for the transaction update
-     * @param  string|null  $description  Optional description for the transaction update
+     * @param  string  $referenceNumber  External reference number for the transaction.
+     * @param  string|null  $remarks  Optional remarks for the transaction update.
+     * @param  string|null  $description  Optional description for the transaction update.
      *
      * @throws \Throwable
      *
      * @example
-     * $transactionService->completeTransaction('TXN123456789', 'Payment successful', 'Customer payment completed');
+     * $transactionService->completeTransaction(trxId: 'TXN123456789', referenceNumber: 'REF-1234567890', remarks: 'Payment successful', description: 'Customer payment completed');
      */
-    public function completeTransaction(string $trxId, ?string $remarks = null, ?string $description = null): void
+    public function completeTransaction(string $trxId, string $referenceNumber, ?string $remarks = null, ?string $description = null): void
     {
         $transaction = $this->findTransaction($trxId);
 
@@ -51,7 +52,13 @@ class TransactionService
             );
         }
 
-        $this->updateTransactionStatusWithRemarks($transaction, TrxStatus::COMPLETED, $remarks, $description);
+        $this->updateTransactionStatusWithRemarks(
+            transaction: $transaction,
+            status: TrxStatus::COMPLETED,
+            referenceNumber: $referenceNumber,
+            remarks: $remarks,
+            description: $description
+        );
 
         if (($handler = $this->resolveHandler($transaction)) instanceof SuccessHandlerInterface) {
             $handler->handleSuccess($transaction);
@@ -79,21 +86,23 @@ class TransactionService
      *
      * @param  Transaction  $transaction  The transaction model to update.
      * @param  TrxStatus  $status  The new transaction status.
+     * @param  string|null  $referenceNumber  Optional external reference number.
      * @param  string|null  $remarks  Optional remarks for the update.
      * @param  string|null  $description  Optional description for the update.
      */
-    protected function updateTransactionStatusWithRemarks(Transaction $transaction, TrxStatus $status, ?string $remarks = null, ?string $description = null): void
+    protected function updateTransactionStatusWithRemarks(Transaction $transaction, TrxStatus $status, ?string $referenceNumber = null, ?string $remarks = null, ?string $description = null): void
     {
         $transaction->update(array_filter([
             'status' => $status,
             'remarks' => $remarks,
             'description' => $description,
+            'trx_reference' => $referenceNumber,
         ]));
 
         $transaction->status = $status;
         $transaction->remarks = $remarks;
         $transaction->description = $description;
-
+        $transaction->trx_reference = $referenceNumber;
         $transaction->save();
         $transaction->refresh();
     }
@@ -115,7 +124,13 @@ class TransactionService
             throw new \Exception('Transaction not found for ID: '.$trxId);
         }
 
-        $this->updateTransactionStatusWithRemarks($transaction, TrxStatus::FAILED, $remarks, $description);
+        $this->updateTransactionStatusWithRemarks(
+            transaction: $transaction,
+            referenceNumber: null,
+            status: TrxStatus::FAILED,
+            remarks: $remarks,
+            description: $description
+        );
 
         if (($handler = $this->resolveHandler($transaction)) instanceof FailHandlerInterface) {
             $handler->handleFail($transaction);
@@ -139,7 +154,12 @@ class TransactionService
             throw new \Exception("Transaction not found for ID: {$trxId}");
         }
 
-        $this->updateTransactionStatusWithRemarks($transaction, TrxStatus::CANCELED, $remarks);
+        $this->updateTransactionStatusWithRemarks(
+            transaction: $transaction,
+            referenceNumber: null,
+            status: TrxStatus::CANCELED,
+            remarks: $remarks
+        );
         $transaction->status = TrxStatus::CANCELED;
 
         if (($handler = $this->resolveHandler($transaction)) instanceof FailHandlerInterface) {

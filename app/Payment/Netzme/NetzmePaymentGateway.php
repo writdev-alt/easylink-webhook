@@ -48,22 +48,25 @@ class NetzmePaymentGateway implements PaymentGateway
                     $description = $transaction->trx_type === TrxType::DEPOSIT
                         ? 'Deposit completed via QRIS IPN'
                         : 'Receive Payment completed via QRIS IPN';
-                    app(TransactionService::class)->completeTransaction($request->originalPartnerReferenceNo, 'Transaction completed via QRIS IPN', $description);
-                    app(WebhookService::class)->sendPaymentReceiveWebhook($original, $rrn, $description);
+                    app(TransactionService::class)->completeTransaction(
+                        trxId: $request->originalPartnerReferenceNo,
+                        referenceNumber: $rrn,
+                        remarks: 'Transaction completed via QRIS IPN',
+                        description: $description
+                    );
+                    app(WebhookService::class)->sendPaymentReceiveWebhook(transaction: $original, referenceNumber: $rrn, description: $description);
                 }
 
                 // Continue with data updates after webhook dispatches
                 $existingData = $transaction->trx_data ?? [];
-                $hitCount = ($existingData['netzme_ipn_hit_count'] ?? 0) + 1;
                 $data = array_merge($existingData, [
                     'netzme_ipn_response' => $request->toArray() ?? [],
-                    'netzme_ipn_hit_count' => $hitCount,
                 ]);
                 $transaction->update(['trx_data' => $data]);
 
                 Log::info('Netzme transaction IPN hit', [
                     'trx_id' => $transaction->trx_id,
-                    'hit_count' => $hitCount,
+                    'hit_count' => $existingData['netzme_ipn_hit_count'] ?? null,
                     'transaction_status' => $request->transactionStatusDesc ?? null,
                     'latest_status' => $request->latestTransactionStatus ?? null,
                 ]);

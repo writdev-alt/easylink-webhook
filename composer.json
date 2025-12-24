@@ -1,19 +1,24 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "wrpay/worker-wrpay",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "Worker WRPay",
+    "keywords": ["wrpay", "worker-wrpay"],
+    "license": "Proprietary",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/writdev-alt/wrpay-core.git"
+        }
+    ],
     "require": {
         "php": "^8.4",
         "elasticsearch/elasticsearch": "^9.1",
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.13",
         "laravel/tinker": "^2.10.1",
-        "opcodesio/log-viewer": "^3.21",
         "sentry/sentry-laravel": "^4.18",
-        "spatie/laravel-webhook-server": "^3.8"
+        "wrpay/core": "dev-main"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.5",

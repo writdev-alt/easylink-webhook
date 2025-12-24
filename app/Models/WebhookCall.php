@@ -3,9 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class WebhookCall extends Model
 {
+    use HasUuids;
+
+    protected $primaryKey = 'uuid';
+    protected $keyType = 'string';
     protected $connection;
 
     protected $fillable = [

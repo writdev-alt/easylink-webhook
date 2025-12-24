@@ -12,25 +12,13 @@ use App\Models\User;
 use App\Services\Handlers\DepositHandler;
 use App\Services\TransactionService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
 
 class TransactionServiceTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-        // Ensure migrations are applied for this unit test
-        Artisan::call('migrate:fresh');
-    }
-
-    protected function tearDown(): void
-    {
-        Mockery::close();
-        parent::tearDown();
-    }
-
     public function test_complete_transaction_throws_when_transaction_missing(): void
     {
         $service = app(TransactionService::class);
@@ -38,7 +26,7 @@ class TransactionServiceTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Transaction not found for ID');
 
-        $service->completeTransaction('MISSING-ID');
+        $service->completeTransaction('MISSING-ID', 'REF-MISSING');
     }
 
     public function test_complete_transaction_updates_status_and_invokes_handler_for_deposit(): void
@@ -60,11 +48,12 @@ class TransactionServiceTest extends TestCase
         app()->instance(DepositHandler::class, $mock);
 
         $service = app(TransactionService::class);
-        $service->completeTransaction($trxId, 'Done', 'Completed via test');
+        $service->completeTransaction($trxId, 'REF-DEPOSIT', 'Done', 'Completed via test');
 
         $updated = $transaction->fresh();
 
         $this->assertEquals(TrxStatus::COMPLETED, $updated->status);
+        $this->assertSame('REF-DEPOSIT', $updated->trx_reference);
         $this->assertSame('Done', $updated->remarks);
         $this->assertSame('Completed via test', $updated->description);
     }
@@ -81,11 +70,12 @@ class TransactionServiceTest extends TestCase
         ))->refresh();
 
         $service = app(TransactionService::class);
-        $service->completeTransaction($trxId);
+        $service->completeTransaction($trxId, 'REF-SEND');
 
         $updated = $transaction->fresh();
 
         $this->assertEquals(TrxStatus::COMPLETED, $updated->status);
+        $this->assertSame('REF-SEND', $updated->trx_reference);
         $this->assertNull($updated->remarks);
         $this->assertNull($updated->description);
     }
