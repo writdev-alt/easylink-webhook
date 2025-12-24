@@ -3,18 +3,16 @@
 namespace App\Services\Handlers;
 
 use App\Jobs\UpdateTransactionStatJob;
-use App\Models\Transaction;
 use App\Payment\PaymentGatewayFactory;
 use App\Services\Handlers\Interfaces\FailHandlerInterface;
-use App\Services\Handlers\Interfaces\SubmittedHandlerInterface;
-use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
-use App\Services\WalletService;
-use App\Services\WebhookService;
+use Wrpay\Core\Models\Transaction;
+use Wrpay\Core\Services\WalletService;
+use Wrpay\Core\Services\WebhookService;
 
 /**
  * WithdrawHandler class handles the processing of withdrawal requests.
  */
-class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface, SuccessHandlerInterface
+class WithdrawHandler implements FailHandlerInterface
 {
     /**
      * Handle successful withdrawal: merge gateway data, subtract funds, send webhook.
@@ -38,9 +36,6 @@ class WithdrawHandler implements FailHandlerInterface, SubmittedHandlerInterface
         );
 
         UpdateTransactionStatJob::dispatch($transaction);
-        // Notify webhook as completed
-        app(WebhookService::class)->sendWithdrawalWebhook($transaction, 'withdrawal completed');
-
         return true;
     }
 

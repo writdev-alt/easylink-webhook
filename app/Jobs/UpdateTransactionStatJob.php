@@ -2,11 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Enums\AmountFlow;
-use App\Enums\TrxType;
 use App\Models\DailyTransactionSummary;
-use App\Models\Merchant;
-use App\Models\Transaction;
 use App\Models\TransactionStat;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
@@ -15,7 +11,10 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
-
+use Wrpay\Core\Enums\AmountFlow;
+use Wrpay\Core\Enums\TrxType;
+use Wrpay\Core\Models\Merchant;
+use Wrpay\Core\Models\Transaction;
 
 class UpdateTransactionStatJob implements ShouldQueue
 {
@@ -30,7 +29,7 @@ class UpdateTransactionStatJob implements ShouldQueue
 
     public function handle(): void
     {
-        $trxType = TrxType::tryFrom((string) $this->transaction->trx_type);
+        $trxType = TrxType::tryFrom($this->transaction->trx_type->value);
 
         if (! $trxType) {
             return;

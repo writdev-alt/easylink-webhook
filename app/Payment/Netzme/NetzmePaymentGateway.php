@@ -2,14 +2,14 @@
 
 namespace App\Payment\Netzme;
 
-use App\Enums\TrxStatus;
-use App\Enums\TrxType;
-use App\Models\Transaction;
 use App\Payment\PaymentGateway;
-use App\Services\TransactionService;
-use App\Services\WebhookService;
+use App\Services\Handlers\PaymentHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Wrpay\Core\Enums\TrxStatus;
+use Wrpay\Core\Enums\TrxType;
+use Wrpay\Core\Models\Transaction;
+use Wrpay\Core\Services\TransactionService;
 
 /**
  * Class NetzmePaymentGateway
@@ -39,25 +39,9 @@ class NetzmePaymentGateway implements PaymentGateway
             $transaction->update(['trx_data' => $data]);
             $transaction->save();
             $transaction->refresh();
-            // Use the originally created instance if available to match test expectations
-            $original = Transaction::getRegisteredInstance($request->originalPartnerReferenceNo) ?? $transaction;
             // If success, complete and send second webhook using same instance
             if ($request->transactionStatusDesc === 'Success' && $request->latestTransactionStatus === '00') {
-                if ($transaction->status !== TrxStatus::COMPLETED) {
-                    $rrn = $request->additionalInfo['rrn'];
-                    $description = $transaction->trx_type === TrxType::DEPOSIT
-                        ? 'Deposit completed via QRIS IPN'
-                        : 'Receive Payment completed via QRIS IPN';
-                    app(TransactionService::class)->completeTransaction(
-                        trxId: $request->originalPartnerReferenceNo,
-                        referenceNumber: $rrn,
-                        remarks: 'Transaction completed via QRIS IPN',
-                        description: $description
-                    );
-                    app(WebhookService::class)->sendPaymentReceiveWebhook(transaction: $original, referenceNumber: $rrn, description: $description);
-                }
 
-                // Continue with data updates after webhook dispatches
                 $existingData = $transaction->trx_data ?? [];
                 $data = array_merge($existingData, [
                     'netzme_ipn_response' => $request->toArray() ?? [],
@@ -66,26 +50,37 @@ class NetzmePaymentGateway implements PaymentGateway
 
                 Log::info('Netzme transaction IPN hit', [
                     'trx_id' => $transaction->trx_id,
-                    'hit_count' => $existingData['netzme_ipn_hit_count'] ?? null,
                     'transaction_status' => $request->transactionStatusDesc ?? null,
                     'latest_status' => $request->latestTransactionStatus ?? null,
                 ]);
+
+                if ($transaction->status !== TrxStatus::COMPLETED) {
+                    $rrn = $request->additionalInfo['rrn'];
+                    $description = $transaction->trx_type === TrxType::DEPOSIT
+                        ? 'Deposit completed via QRIS IPN'
+                        : 'Receive Payment completed via QRIS IPN';
+
+                    app(PaymentHandler::class)->handleSuccess($transaction);
+                    return app(TransactionService::class)->completeTransaction(
+                        trxId: $request->originalPartnerReferenceNo,
+                        referenceNumber: $rrn,
+                        remarks: 'Transaction completed via QRIS IPN',
+                        description: $description
+                    );
+                }
 
                 return true;
             }
 
             // For non-success statuses, dispatch was done; update tracking and return
             $existingData = $transaction->trx_data ?? [];
-            $hitCount = ($existingData['netzme_ipn_hit_count'] ?? 0) + 1;
             $data = array_merge($existingData, [
                 'netzme_ipn_response' => $request->toArray() ?? [],
-                'netzme_ipn_hit_count' => $hitCount,
             ]);
             $transaction->update(['trx_data' => $data]);
 
             Log::info('Netzme transaction IPN hit (non-success)', [
                 'trx_id' => $transaction->trx_id,
-                'hit_count' => $hitCount,
                 'transaction_status' => $request->transactionStatusDesc ?? null,
                 'latest_status' => $request->latestTransactionStatus ?? null,
             ]);

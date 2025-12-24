@@ -35,7 +35,7 @@ class LogWebhookCallSucceededListener
                 ];
             }
             activity()
-                ->performedOn($webhookCall)
+//                ->performedOn($webhookCall)
                 ->withProperties($logData)
                 ->log('Webhook call succeeded');
 

@@ -2,35 +2,32 @@
 
 namespace App\Services\Handlers;
 
-use App\Enums\TrxType;
 use App\Jobs\UpdateTransactionStatJob;
-use App\Models\Transaction;
+use App\Jobs\UpdateAggregatorStoreDailyCacheJob;
 use App\Models\Wallet;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
-use App\Services\WebhookService;
+use Wrpay\Core\Models\Transaction;
 
 class PaymentHandler implements SuccessHandlerInterface
 {
+
     /**
      * Handle success of payment request.
      */
     public function handleSuccess(Transaction $transaction): bool
     {
         // If this is a RECEIVE_PAYMENT, add to balance and lock funds in hold
-        if ($transaction->trx_type === TrxType::RECEIVE_PAYMENT) {
-            $wallet = Wallet::where('uuid', $transaction->wallet_reference)->first();
-            if ($wallet) {
-                $amount = $transaction->payable_amount;
+        $wallet = Wallet::where('uuid', $transaction->wallet_reference)->first();
+        if ($wallet) {
+            $amount = $transaction->net_amount;
 
-                UpdateTransactionStatJob::dispatch($transaction);
+            UpdateTransactionStatJob::dispatch($transaction);
+            UpdateAggregatorStoreDailyCacheJob::dispatch($transaction);
 
-                return $wallet->addToHoldBalance($amount);
-            }
-
-            return false;
+            return $wallet->addToHoldBalance($amount);
         }
 
-        return app(WebhookService::class)->sendPaymentReceiveWebhook($transaction, 'Payment received');
+        return false;
 
     }
 }

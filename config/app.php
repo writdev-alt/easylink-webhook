@@ -123,4 +123,15 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Merchant Store Limit
+    |--------------------------------------------------------------------------
+    |
+    | This value is the limit of merchant stores that can be created.
+    |
+    */
+    'ma_merchant_store_limit' => env('APP_MERCHANT_STORE_LIMIT', 50), // in 50 million
+    'ma_instance' => env('APP_MA_ID', 2),
+
 ];

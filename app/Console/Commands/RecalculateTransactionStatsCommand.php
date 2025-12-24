@@ -246,7 +246,7 @@ class RecalculateTransactionStatsCommand extends Command
                 ->chunk($chunkSize, function (Collection $chunk) use (&$rows, $dimension): void {
                     foreach ($chunk as $row) {
                         $trxType = TrxType::tryFrom((string) $row->trx_type);
-                        
+
                         if (! $trxType) {
                             continue;
                         }

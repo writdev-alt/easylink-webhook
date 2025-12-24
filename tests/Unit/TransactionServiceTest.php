@@ -11,8 +11,6 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Handlers\DepositHandler;
 use App\Services\TransactionService;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;

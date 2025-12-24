@@ -18,7 +18,8 @@
         "laravel/octane": "^2.13",
         "laravel/tinker": "^2.10.1",
         "sentry/sentry-laravel": "^4.18",
-        "wrpay/core": "dev-main"
+        "wrpay/core": "dev-main",
+        "ext-openssl": "*"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.5",

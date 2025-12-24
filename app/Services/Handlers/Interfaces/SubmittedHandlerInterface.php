@@ -2,7 +2,7 @@
 
 namespace App\Services\Handlers\Interfaces;
 
-use App\Models\Transaction;
+use Wrpay\Core\Models\Transaction;
 
 interface SubmittedHandlerInterface
 {

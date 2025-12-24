@@ -16,7 +16,7 @@ enum TransferState: int
 {
     case CREATE = 1;
     case CONFIRM = 2;
-    case hold = 3;
+    case HOLD = 3;
     case REVIEW = 4;
     case PAYOUT = 5;
     case SENT = 6;
@@ -35,7 +35,7 @@ enum TransferState: int
         return match ($this) {
             self::CREATE => 'Created',
             self::CONFIRM => 'Confirmed',
-            self::hold => 'Hold',
+            self::HOLD => 'HOLD',
             self::REVIEW => 'Under Review',
             self::PAYOUT => 'Payout',
             self::SENT => 'Sent',

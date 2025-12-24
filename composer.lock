@@ -7393,12 +7393,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:writdev-alt/wrpay-core.git",
-                "reference": "a782d9872131a4d79ac8d97c8c6b9215c09ce09c"
+                "reference": "7b512e50821db5f29af5442f362c73ae5a47f606"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/writdev-alt/wrpay-core/zipball/a782d9872131a4d79ac8d97c8c6b9215c09ce09c",
-                "reference": "a782d9872131a4d79ac8d97c8c6b9215c09ce09c",
+                "url": "https://api.github.com/repos/writdev-alt/wrpay-core/zipball/7b512e50821db5f29af5442f362c73ae5a47f606",
+                "reference": "7b512e50821db5f29af5442f362c73ae5a47f606",
                 "shasum": ""
             },
             "require": {
@@ -7453,7 +7453,7 @@
                 "source": "https://github.com/writdev-alt/wrpay-core/tree/main",
                 "issues": "https://github.com/writdev-alt/wrpay-core/issues"
             },
-            "time": "2025-12-22T15:42:58+00:00"
+            "time": "2025-12-24T14:14:23+00:00"
         }
     ],
     "packages-dev": [
