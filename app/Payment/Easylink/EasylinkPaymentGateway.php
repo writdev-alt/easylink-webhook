@@ -495,6 +495,15 @@ class EasylinkPaymentGateway
         }
     }
 
+    /**
+     * Lists all remittance transactions from the Bank Partner API.
+     *
+     * @param  string  $startDate  The start date of the remittance transactions.
+     * @param  string  $endDate  The end date of the remittance transactions.
+     * @param  string  $pageSize  The page size of the remittance transactions.
+     * @param  string  $pageNumber  The page number of the remittance transactions.
+     * @return object The response object from the API.
+     */
     public function getRemittanceList(string $startDate, string $endDate, ?string $pageSize = null, ?string $pageNumber = null): object|bool
     {
         $body = [
@@ -553,19 +562,6 @@ class EasylinkPaymentGateway
                 ];
             }
         } catch (Exception $e) {
-            if ($e->getMessage() === 'Duplicate reference.') {
-                Log::error($e->getMessage());
-
-                if (isset($transaction->trx_data['easylink_disbursement'])) {
-                    return (object) $transaction->trx_data['easylink_disbursement'];
-                }
-
-                return (object) [
-                    'state' => TransferState::CREATE, // Default state for create
-                    'message' => 'Duplicate Reference',
-                ];
-            }
-
             throw new Exception($this->handleApiResponseError($e));
         }
     }
