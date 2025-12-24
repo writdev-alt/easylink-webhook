@@ -38,18 +38,8 @@ class IPNController
 
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Unsupported payment gateway',
+                    'message' => $unsupported->getMessage(),
                 ], 404);
-            }
-            if ($gateway === 'netzme') {
-                $trxId = $request->originalPartnerReferenceNo;
-            } elseif ($gateway === 'easylink') {
-                $trxId = $request->reference_id;
-            } else {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Unsupported gateway',
-                ], 400);
             }
 
             Log::info('IPN received', [

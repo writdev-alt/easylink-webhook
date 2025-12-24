@@ -105,8 +105,19 @@ class EasylinkPaymentGateway
                 'app_id' => $this->credentials['app_id'],
                 'app_secret' => $this->credentials['app_secret'],
             ]);
-            $this->accessToken = $response->object()->data;
-            Log::info('Easylink Access Token Response', ['response' => $response->body()]);
+            $payload = $response->json();
+            $token = $payload['data'] ?? null;
+
+            if (is_array($token)) {
+                $token = $token['access_token'] ?? $token['token'] ?? reset($token);
+            }
+
+            if (! is_string($token) || $token === '') {
+                throw new RuntimeException('Invalid access token response from Easylink API.');
+            }
+
+            $this->accessToken = $token;
+            Log::info('Easylink Access Token Response', ['response' => $payload]);
         } catch (ConnectionException $e) {
             throw new RuntimeException('Failed to connect to Easylink API.');
         }
