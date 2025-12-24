@@ -19,12 +19,12 @@ class IPNController
      *
      * @param  Request  $request  The request containing the IPN data
      * @param  string  $gateway  The gateway to handle the IPN
-     * @param  null  $action  The action to handle the IPN
+     * @param null $action  The action to handle the IPN
      * @return JsonResponse
      *
      * @throws \Throwable
      */
-    public function handleIPN(Request $request, string $gateway, $action = null)
+    public function handleIPN(Request $request, string $gateway, null $action = null)
     {
         try {
             // Ensure we only acknowledge supported gateways
@@ -40,6 +40,16 @@ class IPNController
                     'status' => 'error',
                     'message' => $unsupported->getMessage(),
                 ], 404);
+            }
+            if ($gateway === 'netzme') {
+                $trxId = $request->originalPartnerReferenceNo;
+            } elseif ($gateway === 'easylink') {
+                $trxId = $request->reference_id;
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unsupported gateway',
+                ], 400);
             }
 
             Log::info('IPN received', [
