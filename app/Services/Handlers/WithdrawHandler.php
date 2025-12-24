@@ -2,9 +2,10 @@
 
 namespace App\Services\Handlers;
 
+use App\Jobs\UpdateAggregatorStoreDailyCacheJob;
 use App\Jobs\UpdateTransactionStatJob;
-use App\Payment\PaymentGatewayFactory;
 use App\Services\Handlers\Interfaces\FailHandlerInterface;
+use Illuminate\Support\Facades\Bus;
 use Wrpay\Core\Models\Transaction;
 use Wrpay\Core\Services\WalletService;
 use Wrpay\Core\Services\WebhookService;
@@ -19,23 +20,10 @@ class WithdrawHandler implements FailHandlerInterface
      */
     public function handleSuccess(Transaction $transaction): bool
     {
-        // Merge gateway disbursement data into trx_data using reference
-        $reference = is_array($transaction->trx_data ?? null) ? ($transaction->trx_data['reference'] ?? null) : null;
-        if ($reference) {
-            $gateway = app(PaymentGatewayFactory::class)->getGateway('easylink');
-            $payload = $gateway->getDomesticTransfer($reference);
-
-            $merged = array_merge(['reference' => $reference], (array) $payload);
-            $transaction->update(['trx_data' => $merged]);
-        }
-
-        // Subtract payable amount from wallet
-        app(WalletService::class)->subtractMoneyByWalletUuid(
-            $transaction->wallet_reference,
-            (float) $transaction->payable_amount
-        );
-
-        UpdateTransactionStatJob::dispatch($transaction);
+        Bus::batch([
+            new UpdateTransactionStatJob($transaction),
+            new UpdateAggregatorStoreDailyCacheJob($transaction),
+        ])->dispatch();
         return true;
     }
 

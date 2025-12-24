@@ -6,6 +6,7 @@ use App\Jobs\UpdateTransactionStatJob;
 use App\Jobs\UpdateAggregatorStoreDailyCacheJob;
 use App\Models\Wallet;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
+use Illuminate\Support\Facades\Bus;
 use Wrpay\Core\Models\Transaction;
 
 class PaymentHandler implements SuccessHandlerInterface
@@ -18,16 +19,28 @@ class PaymentHandler implements SuccessHandlerInterface
     {
         // If this is a RECEIVE_PAYMENT, add to balance and lock funds in hold
         $wallet = Wallet::where('uuid', $transaction->wallet_reference)->first();
-        if ($wallet) {
-            $amount = $transaction->net_amount;
-
-            UpdateTransactionStatJob::dispatch($transaction);
-            UpdateAggregatorStoreDailyCacheJob::dispatch($transaction);
-
-            return $wallet->addToHoldBalance($amount);
+        if (! $wallet) {
+            return false;
         }
 
-        return false;
+        $amount = (float) ($transaction->net_amount ?? 0);
+
+        if ($amount <= 0) {
+            return false;
+        }
+
+        $added = $wallet->addToHoldBalance($amount);
+
+        if (! $added) {
+            return false;
+        }
+
+        Bus::batch([
+            new UpdateTransactionStatJob($transaction),
+            new UpdateAggregatorStoreDailyCacheJob($transaction),
+        ])->dispatch();
+
+        return true;
 
     }
 }

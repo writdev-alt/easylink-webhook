@@ -66,7 +66,6 @@ class EasylinkPaymentGateway
         $this->credentials = $customCredentials ?? config('payment_gateways.easylink.credentials');
         $this->baseUrl = $this->getBaseUrl();
         $this->getAccessToken();
-        Log::info('Easylink Credentials', ['credentials' => $this->credentials]);
     }
 
     /**
@@ -807,6 +806,12 @@ class EasylinkPaymentGateway
         }
     }
 
+    /**
+     * Validates the webhook data from the Bank Partner API.
+     *
+     * @param  array  $data  The webhook data from the Bank Partner API.
+     * @return bool Whether the webhook data was validated successfully.
+     */
     public function validateWebHook(array $data): bool
     {
         $this->getAccessToken();
@@ -843,6 +848,13 @@ class EasylinkPaymentGateway
 
     }
 
+    /**
+     * Updates the transaction data with the settlement data from the Bank Partner API.
+     *
+     * @param  Transaction  $transaction  The transaction model.
+     * @param  array  $settlementData  The settlement data from the Bank Partner API.
+     * @return bool Whether the settlement data was updated successfully.
+     */
     public function updateSettlementTransactionData(Transaction $transaction, array $settlementData): bool
     {
         $data = array_merge($transaction->trx_data ?? [], [
@@ -878,48 +890,6 @@ class EasylinkPaymentGateway
          * was processed successfully.
          */
         switch ($stateEnum) {
-            case TransferState::COMPLETE: // 7
-                $remarks = 'Withdrawal request is completed by Financial Institution';
-                $description = 'Withdrawal request is completed by Bank Partner';
-
-                return app(TransactionService::class)->completeTransaction(
-                    trxId: $settlementData['reference_id'],
-                    referenceNumber: $settlementData['disbursement_id'],
-                    remarks: $remarks,
-                    description: $description
-                );
-
-            case TransferState::REFUND_SUCCESS: // 10
-                $remarks = 'Withdrawal request has been cancelled and refunded by Financial Institution';
-                $description = 'Withdrawal request has been cancelled and refunded by Bank Partner';
-
-                return app(TransactionService::class)->refundTransaction(
-                    trxId: $settlementData['reference_id'],
-                    referenceNumber: $settlementData['disbursement_id'],
-                    remarks: $remarks,
-                    description: $description
-                );
-
-            case TransferState::CANCELED: // 8
-                $remarks = 'Withdrawal request has been cancelled by Financial Institution';
-                $description = 'Withdrawal request has been cancelled by Bank Partner';
-
-                return app(TransactionService::class)->failTransaction(
-                    trxId: $settlementData['reference_id'],
-                    remarks: $remarks,
-                    description: $description
-                );
-
-            case TransferState::FAILED: // 9
-                $remarks = 'Withdrawal request is failed on Financial Institution: '.($settlementData['message'] ?? '');
-                $description = 'Withdrawal request is failed on Bank Partner: '.($settlementData['message'] ?? '');
-
-                return app(TransactionService::class)->failTransaction(
-                    trxId: $settlementData['reference_id'],
-                    remarks: $remarks,
-                    description: $description
-                );
-
             case TransferState::CREATE: // 1
                 $remarks = 'Withdrawal request is created by Financial Institution';
 
@@ -951,6 +921,17 @@ class EasylinkPaymentGateway
                     description: $description
                 );
 
+            case TransferState::REVIEW: // 4
+                $remarks = 'Withdrawal request is under review by Financial Institution';
+                $description = 'Withdrawal request is under review by Bank Partner';
+
+                return app(TransactionService::class)->updateTransactionStatusWithRemarks(
+                    transaction: $transaction,
+                    status: TrxStatus::AWAITING_FI_PROCESS,
+                    remarks: $remarks,
+                    description: $description
+                );
+
             case TransferState::PAYOUT: // 5
                 $remarks = 'Withdrawal request is being processed in Payout Queue by Financial Institution';
                 $description = 'Withdrawal request is being processed in Payout Queue by Bank Partner';
@@ -973,13 +954,33 @@ class EasylinkPaymentGateway
                     description: $description
                 );
 
-            case TransferState::REVIEW: // 4
-                $remarks = 'Withdrawal request is under review by Financial Institution';
-                $description = 'Withdrawal request is under review by Bank Partner';
+            case TransferState::CANCELED: // 8
+                $remarks = 'Withdrawal request has been cancelled by Financial Institution';
+                $description = 'Withdrawal request has been cancelled by Bank Partner';
 
-                return app(TransactionService::class)->updateTransactionStatusWithRemarks(
-                    transaction: $transaction,
-                    status: TrxStatus::AWAITING_FI_PROCESS,
+                return app(TransactionService::class)->failTransaction(
+                    trxId: $settlementData['reference_id'],
+                    remarks: $remarks,
+                    description: $description
+                );
+
+            case TransferState::FAILED: // 9
+                $remarks = 'Withdrawal request is failed on Financial Institution: '.($settlementData['message'] ?? '');
+                $description = 'Withdrawal request is failed on Bank Partner: '.($settlementData['message'] ?? '');
+
+                return app(TransactionService::class)->failTransaction(
+                    trxId: $settlementData['reference_id'],
+                    remarks: $remarks,
+                    description: $description
+                );
+
+            case TransferState::REFUND_SUCCESS: // 10
+                $remarks = 'Withdrawal request has been cancelled and refunded by Financial Institution';
+                $description = 'Withdrawal request has been cancelled and refunded by Bank Partner';
+
+                return app(TransactionService::class)->refundTransaction(
+                    trxId: $settlementData['reference_id'],
+                    referenceNumber: $settlementData['disbursement_id'],
                     remarks: $remarks,
                     description: $description
                 );
@@ -991,19 +992,26 @@ class EasylinkPaymentGateway
 
                 return app(TransactionService::class)->updateTransactionStatusWithRemarks(
                     transaction: $transaction,
-                    status: TrxStatus::COMPLETED,
+                    status: TrxStatus::AWAITING_FI_PROCESS,
                     remarks: $remarks,
                     description: $description
                 );
 
-            case TransferState::REMIND_RECIPIENT: // 27
-                $remarks = 'Withdrawal request is being reminded to recipient by Financial Institution';
-                $description = 'Withdrawal request is being reminded to recipient by Bank Partner';
-                app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
+            case TransferState::COMPLETE: // 7
+            case TransferState::REMIND_RECIPIENT: // 27 (treated as success for international remittance)
+                $isReminder = $stateEnum === TransferState::REMIND_RECIPIENT;
+                $remarks = $isReminder
+                    ? 'Withdrawal request completed (international remittance reminder)'
+                    : 'Withdrawal request is completed by Financial Institution';
+                $description = $isReminder
+                    ? 'Withdrawal request completed (international remittance reminder)'
+                    : 'Withdrawal request is completed by Bank Partner';
 
-                return app(TransactionService::class)->updateTransactionStatusWithRemarks(
-                    transaction: $transaction,
-                    status: TrxStatus::COMPLETED,
+                $referenceNumber = $settlementData['disbursement_id'] ?? $settlementData['reference_id'];
+
+                return app(TransactionService::class)->completeTransaction(
+                    trxId: $settlementData['reference_id'],
+                    referenceNumber: $referenceNumber,
                     remarks: $remarks,
                     description: $description
                 );
