@@ -2,49 +2,45 @@
 
 namespace App\Listeners;
 
-use Illuminate\Support\Facades\Log;
-use Spatie\WebhookServer\Events\WebhookCallFailedEvent;
+use App\Listeners\Concerns\LogsWebhookCalls;
+use Spatie\WebhookServer\Events\WebhookCallEvent;
 
 class LogWebhookCallFailedListener
 {
+    use LogsWebhookCalls;
+
     /**
-     * Handle the event.
+     * Check if this event should be processed.
+     * Skip logging if this is the final attempt, as LogFinalWebhookCallFailedListener will handle it.
      */
-    public function handle(WebhookCallFailedEvent $event): void
+    protected function shouldProcess(WebhookCallEvent $event): bool
     {
-        try {
-            $webhookCall = $event->webhookCall ?? null;
-            $exception = $event->exception ?? null;
+        $maxTries = config('webhook-server.tries', 3);
 
-            $logData = [
-                'timestamp' => now()->toIso8601String(),
-            ];
+        return $event->attempt < $maxTries;
+    }
 
-            if ($webhookCall) {
-                $logData['url'] = $webhookCall->url ?? null;
-                $logData['attempt'] = $webhookCall->attempt ?? null;
-                $logData['uuid'] = $webhookCall->uuid ?? null;
-                $logData['payload'] = $webhookCall->payload ?? null;
-                $logData['headers'] = $webhookCall->headers ?? null;
-            }
+    /**
+     * Get the log level for the webhook event.
+     */
+    protected function getLogLevel(): string
+    {
+        return 'emergency';
+    }
 
-            if ($exception) {
-                $logData['exception'] = [
-                    'message' => $exception->getMessage(),
-                    'class' => get_class($exception),
-                    'code' => $exception->getCode(),
-                    'file' => $exception->getFile(),
-                    'line' => $exception->getLine(),
-                    'trace' => $exception->getTraceAsString(),
-                ];
-            }
+    /**
+     * Get the log message for the webhook event.
+     */
+    protected function getLogMessage(): string
+    {
+        return 'Webhook call failed';
+    }
 
-            Log::error('Webhook call failed', $logData);
-        } catch (\Throwable $e) {
-            Log::error('Error logging webhook call failure', [
-                'error' => $e->getMessage(),
-                'class' => get_class($e),
-            ]);
-        }
+    /**
+     * Get the status for the webhook log entry.
+     */
+    protected function getWebhookStatus(): string
+    {
+        return 'pending';
     }
 }

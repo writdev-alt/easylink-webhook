@@ -34,6 +34,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DailyTransactionSummary extends Model
 {
+    protected $connection;
+
     /**
      * The table associated with the model.
      *

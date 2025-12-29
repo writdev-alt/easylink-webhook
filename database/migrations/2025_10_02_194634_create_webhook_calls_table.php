@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::create('webhook_calls', function (Blueprint $table) {
+        Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->create('webhook_calls', function (Blueprint $table) {
             $table->bigIncrements('id');
 
             $table->string('name');
@@ -24,6 +24,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('webhook_calls');
+        Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->dropIfExists('webhook_calls');
     }
 };

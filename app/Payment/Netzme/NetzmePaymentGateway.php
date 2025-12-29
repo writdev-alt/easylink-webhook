@@ -61,6 +61,7 @@ class NetzmePaymentGateway implements PaymentGateway
                         : 'Receive Payment completed via QRIS IPN';
 
                     app(PaymentHandler::class)->handleSuccess($transaction);
+
                     return app(TransactionService::class)->completeTransaction(
                         trxId: $request->originalPartnerReferenceNo,
                         referenceNumber: $rrn,

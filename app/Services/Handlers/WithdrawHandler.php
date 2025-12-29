@@ -24,6 +24,7 @@ class WithdrawHandler implements FailHandlerInterface
             new UpdateTransactionStatJob($transaction),
             new UpdateAggregatorStoreDailyCacheJob($transaction),
         ])->dispatch();
+
         return true;
     }
 

@@ -2,49 +2,33 @@
 
 namespace App\Listeners;
 
-use Illuminate\Support\Facades\Log;
-use Spatie\WebhookServer\Events\WebhookCallSucceededEvent;
+use App\Listeners\Concerns\LogsWebhookCalls;
 
 class LogWebhookCallSucceededListener
 {
+    use LogsWebhookCalls;
+
     /**
-     * Handle the event.
+     * Get the log level for the webhook event.
      */
-    public function handle(WebhookCallSucceededEvent $event): void
+    protected function getLogLevel(): string
     {
-        try {
-            $webhookCall = $event->webhookCall ?? null;
-            $response = $event->response ?? null;
+        return 'info';
+    }
 
-            $logData = [
-                'timestamp' => now()->toIso8601String(),
-            ];
+    /**
+     * Get the log message for the webhook event.
+     */
+    protected function getLogMessage(): string
+    {
+        return 'Webhook call succeeded';
+    }
 
-            if ($webhookCall) {
-                $logData['url'] = $webhookCall->url ?? null;
-                $logData['attempt'] = $webhookCall->attempt ?? null;
-                $logData['uuid'] = $webhookCall->uuid ?? null;
-                $logData['payload'] = $webhookCall->payload ?? null;
-                $logData['headers'] = $webhookCall->headers ?? null;
-            }
-
-            if ($response) {
-                $logData['response'] = [
-                    'status_code' => method_exists($response, 'getStatusCode') ? $response->getStatusCode() : null,
-                    'body' => method_exists($response, 'getBody') ? (string) $response->getBody() : null,
-                ];
-            }
-            activity()
-//                ->performedOn($webhookCall)
-                ->withProperties($logData)
-                ->log('Webhook call succeeded');
-
-            Log::info('Webhook call succeeded', $logData);
-        } catch (\Throwable $e) {
-            Log::error('Error logging webhook call success', [
-                'error' => $e->getMessage(),
-                'class' => get_class($e),
-            ]);
-        }
+    /**
+     * Get the status for the webhook log entry.
+     */
+    protected function getWebhookStatus(): string
+    {
+        return 'success';
     }
 }

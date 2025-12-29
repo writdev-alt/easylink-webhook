@@ -2,12 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo; // For UUIDs
 
 class TransactionStat extends Model
 {
+    use HasUuids;
+
+    protected $primaryKey = 'id';
+
+    protected $keyType = 'string';
+
+    protected $connection;
+
     /**
      * The attributes that are mass assignable.
      */

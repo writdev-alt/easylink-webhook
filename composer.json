@@ -13,13 +13,15 @@
     ],
     "require": {
         "php": "^8.4",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
         "elasticsearch/elasticsearch": "^9.1",
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.13",
         "laravel/tinker": "^2.10.1",
         "sentry/sentry-laravel": "^4.18",
-        "wrpay/core": "dev-main",
-        "ext-openssl": "*"
+        "spatie/laravel-google-cloud-storage": "^2.3",
+        "wrpay/core": "dev-main"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.5",

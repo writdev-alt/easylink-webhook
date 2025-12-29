@@ -16,11 +16,9 @@ use Wrpay\Core\Models\Transaction;
 
 class UpdateAggregatorStoreDailyCacheJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function __construct(public Transaction $transaction)
-    {
-    }
+    public function __construct(public Transaction $transaction) {}
 
     public function handle(): void
     {
@@ -72,4 +70,3 @@ class UpdateAggregatorStoreDailyCacheJob implements ShouldQueue
         }
     }
 }
-

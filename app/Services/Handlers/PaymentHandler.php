@@ -2,8 +2,8 @@
 
 namespace App\Services\Handlers;
 
-use App\Jobs\UpdateTransactionStatJob;
 use App\Jobs\UpdateAggregatorStoreDailyCacheJob;
+use App\Jobs\UpdateTransactionStatJob;
 use App\Models\Wallet;
 use App\Services\Handlers\Interfaces\SuccessHandlerInterface;
 use Illuminate\Support\Facades\Bus;
@@ -11,7 +11,6 @@ use Wrpay\Core\Models\Transaction;
 
 class PaymentHandler implements SuccessHandlerInterface
 {
-
     /**
      * Handle success of payment request.
      */

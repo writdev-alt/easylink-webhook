@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
 
-        Schema::create('transaction_stats', function (Blueprint $table) {
-            $table->id();
+        Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->create('transaction_stats', function (Blueprint $table) {
+            $table->uuid('id')->primary();
             $table->morphs('model');
             $table->unsignedBigInteger('total_transactions')->default(0);
             $table->unsignedBigInteger('total_amount')->default(0);
@@ -31,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('transaction_stats');
+        Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->dropIfExists('transaction_stats');
     }
 };

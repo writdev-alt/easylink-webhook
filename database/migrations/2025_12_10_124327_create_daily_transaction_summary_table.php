@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('daily_transaction_summary', function (Blueprint $table) {
+        Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->create('daily_transaction_summary', function (Blueprint $table) {
             $table->date('date');
             $table->unsignedBigInteger('user_id');
             $table->decimal('total_incoming', 20, 2)->default(0);
@@ -21,7 +21,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->primary(['date', 'user_id']);
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->index('user_id');
         });
     }
@@ -31,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('daily_transaction_summary');
+        Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->dropIfExists('daily_transaction_summary');
     }
 };

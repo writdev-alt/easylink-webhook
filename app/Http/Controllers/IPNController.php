@@ -19,7 +19,7 @@ class IPNController
      *
      * @param  Request  $request  The request containing the IPN data
      * @param  string  $gateway  The gateway to handle the IPN
-     * @param null $action  The action to handle the IPN
+     * @param  null  $action  The action to handle the IPN
      * @return JsonResponse
      *
      * @throws \Throwable

@@ -7,9 +7,7 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 class EventServiceProvider extends ServiceProvider
 {
     protected $listen = [
-        \App\Events\WebhookReceived::class => [
-            \App\Listeners\StoreWebhookCallListener::class,
-        ],
+
         \Spatie\WebhookServer\Events\WebhookCallFailedEvent::class => [
             \App\Listeners\LogWebhookCallFailedListener::class,
         ],

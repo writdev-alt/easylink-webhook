@@ -19,7 +19,7 @@ use Wrpay\Core\Models\Transaction;
 
 class UpdateTransactionStatJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, Batchable;
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
      * Execute the job.
