@@ -26,7 +26,7 @@ class StoreWebhookPayloadJob implements ShouldQueue
 
     public function handle()
     {
-        WebhookCall::create([
+        $webhookCall = WebhookCall::create([
             'name' => $this->gateway,
             'url' => $this->requestUrl,
             'headers' => $this->requestHeaders,
@@ -71,6 +71,8 @@ class StoreWebhookPayloadJob implements ShouldQueue
             }
 
             $result = $disk->put($filePath, $content);
+            $webhookCall->payload_gcs_exported_at = now();
+            $webhookCall->save();
 
             if ($result) {
                 Log::info('Webhook payload saved to GCS', [

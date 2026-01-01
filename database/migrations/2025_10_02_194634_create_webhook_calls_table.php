@@ -17,6 +17,7 @@ return new class extends Migration
             $table->json('payload')->nullable();
             $table->text('exception')->nullable();
             $table->string('trx_id')->nullable()->index();
+            $table->timestamp('payload_gcs_exported_at')->nullable();
 
             $table->timestamps();
         });
