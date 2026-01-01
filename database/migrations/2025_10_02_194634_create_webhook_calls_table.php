@@ -9,16 +9,16 @@ return new class extends Migration
     public function up()
     {
         Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->create('webhook_calls', function (Blueprint $table) {
-            $table->bigIncrements('id');
-
+            $table->uuid('id')->primary();
             $table->string('name');
             $table->string('url', 512);
             $table->json('headers')->nullable();
             $table->json('payload')->nullable();
             $table->text('exception')->nullable();
-            $table->string('trx_id')->nullable()->index();
-            $table->timestamp('payload_gcs_exported_at')->nullable();
-
+            $table->timestamp('processed_at')->nullable();
+            $table->string('trx_id')->index();
+            $table->string('hash')->nullable();
+            $table->string('path')->nullable();
             $table->timestamps();
         });
     }

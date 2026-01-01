@@ -9,7 +9,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class StoreWebhookPayloadJob implements ShouldQueue
 {
@@ -24,84 +23,48 @@ class StoreWebhookPayloadJob implements ShouldQueue
         public string $requestMethod,
     ) {}
 
-    public function handle()
+    public function handle(): void
     {
-        $webhookCall = WebhookCall::create([
-            'name' => $this->gateway,
-            'url' => $this->requestUrl,
-            'headers' => $this->requestHeaders,
-            // 'payload' => $this->payload,
-            'http_verb' => $this->requestMethod,
-            'trx_id' => $this->trxId,
-        ]);
-        // save request to gcs
         try {
-            $filePath = 'webhook-payload/'.$this->gateway.'/'.$this->trxId.'.json';
-            $content = json_encode($this->payload, JSON_PRETTY_PRINT);
-
-            // Check if GCS disk is configured
-            $gcsConfig = config('filesystems.disks.gcs');
-            if (! $gcsConfig) {
-                Log::error('GCS disk not configured', [
-                    'gateway' => $this->gateway,
-                    'trx_id' => $this->trxId,
-                ]);
-
-                return;
-            }
-
-            // Log configuration (without sensitive data)
-            Log::debug('GCS configuration check', [
-                'bucket' => $gcsConfig['bucket'] ?? 'not set',
-                'project_id' => $gcsConfig['project_id'] ?? 'not set',
-                'key_file_path' => $gcsConfig['key_file_path'] ? 'set' : 'not set',
-                'driver' => $gcsConfig['driver'] ?? 'not set',
+            // Create webhook call record
+            $webhookCall = WebhookCall::create([
+                'name' => $this->gateway,
+                'url' => $this->requestUrl,
+                'headers' => $this->requestHeaders,
+                'http_verb' => $this->requestMethod,
+                'trx_id' => $this->trxId,
             ]);
 
-            $disk = Storage::disk('gcs');
+            // Save payload to storage using model method
+            $saved = $webhookCall->savePayload($this->payload);
 
-            // Verify disk exists
-            if (! $disk) {
-                Log::error('GCS disk not available', [
+            if ($saved) {
+                Log::info('Webhook payload saved successfully', [
                     'gateway' => $this->gateway,
                     'trx_id' => $this->trxId,
-                ]);
-
-                return;
-            }
-
-            $result = $disk->put($filePath, $content);
-            $webhookCall->payload_gcs_exported_at = now();
-            $webhookCall->save();
-
-            if ($result) {
-                Log::info('Webhook payload saved to GCS', [
-                    'gateway' => $this->gateway,
-                    'trx_id' => $this->trxId,
-                    'file_path' => $filePath,
-                    'bucket' => $gcsConfig['bucket'] ?? null,
+                    'webhook_call_id' => $webhookCall->id,
+                    'path' => $webhookCall->path,
                 ]);
             } else {
-                Log::error('Failed to save webhook payload to GCS - put() returned false', [
+                Log::warning('Webhook payload save returned false', [
                     'gateway' => $this->gateway,
                     'trx_id' => $this->trxId,
-                    'file_path' => $filePath,
-                    'bucket' => $gcsConfig['bucket'] ?? null,
+                    'webhook_call_id' => $webhookCall->id,
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Exception while saving webhook payload to GCS', [
+            Log::error('Exception while storing webhook payload', [
                 'gateway' => $this->gateway,
                 'trx_id' => $this->trxId,
                 'error' => $e->getMessage(),
-                'error_class' => get_class($e),
+                'error_class' => $e::class,
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             // Don't re-throw to prevent job failure - log and continue
-            // Uncomment the line below if you want jobs to fail on GCS errors
+            // Uncomment the line below if you want jobs to fail on storage errors
             // throw $e;
         }
     }
