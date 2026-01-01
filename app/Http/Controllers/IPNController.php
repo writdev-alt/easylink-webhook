@@ -17,14 +17,13 @@ class IPNController
      *
      * This method handles IPN based on the specific gateway.
      *
-     * @param  Request  $request  The request containing the IPN data
-     * @param  string  $gateway  The gateway to handle the IPN
-     * @param  null  $action  The action to handle the IPN
+     * @param Request $request The request containing the IPN data
+     * @param string $gateway The gateway to handle the IPN
+     * @param string|null $action The action to handle the IPN
      * @return JsonResponse
      *
-     * @throws \Throwable
      */
-    public function handleIPN(Request $request, string $gateway, null $action = null)
+    public function handleIPN(Request $request, string $gateway, ?string $action = null)
     {
         try {
             // Ensure we only acknowledge supported gateways
@@ -56,7 +55,7 @@ class IPNController
                 'gateway' => $gateway,
                 'action' => $action,
                 'http_verb' => $request->method(),
-                'query' => $request->query->all(),
+                'query' => $request->all(),
             ]);
 
             $payload = array_merge($request->toArray(), [

@@ -5,6 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model; // For UUIDs
 
+/**
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionWebhookLog newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionWebhookLog newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionWebhookLog query()
+ * @mixin \Eloquent
+ */
 class TransactionWebhookLog extends Model
 {
     use HasUuids;

@@ -63,9 +63,19 @@ class EasylinkPaymentGateway
      */
     public function __construct(?array $customCredentials = null)
     {
+        Log::debug('EasylinkPaymentGateway - Constructor called', [
+            'has_custom_credentials' => $customCredentials !== null,
+            'app_mode' => config('app.mode'),
+        ]);
+
         $this->credentials = $customCredentials ?? config('payment_gateways.easylink.credentials');
         $this->baseUrl = $this->getBaseUrl();
-        $this->getAccessToken();
+
+        Log::info('EasylinkPaymentGateway - Initialized', [
+            'base_url' => $this->baseUrl,
+            'is_sandbox' => $this->isSandbox(),
+            'has_credentials' => !empty($this->credentials),
+        ]);
     }
 
     /**
@@ -75,12 +85,16 @@ class EasylinkPaymentGateway
     {
         $sandboxEndpoint = 'http://sandbox.easylink.id:9080';
         $productionEndpoint = 'https://openapi.easylink.id';
+        $appMode = config('app.mode');
 
-        if (config('app.mode') === 'production') {
-            return $productionEndpoint;
-        }
+        $baseUrl = ($appMode === 'production') ? $productionEndpoint : $sandboxEndpoint;
 
-        return $sandboxEndpoint;
+        Log::debug('EasylinkPaymentGateway - getBaseUrl', [
+            'app_mode' => $appMode,
+            'selected_endpoint' => $baseUrl,
+        ]);
+
+        return $baseUrl;
     }
 
     /**
@@ -100,26 +114,77 @@ class EasylinkPaymentGateway
      */
     public function getAccessToken(): void
     {
+        Log::info('EasylinkPaymentGateway - getAccessToken - Method started', [
+            'base_url' => $this->baseUrl,
+            'endpoint' => $this->baseUrl.'/get-access-token',
+        ]);
+
         try {
+            $requestBody = [
+                'app_id' => $this->credentials['app_id'] ?? null,
+                'app_secret' => isset($this->credentials['app_secret']) ? '***masked***' : null,
+            ];
+
+            Log::debug('EasylinkPaymentGateway - getAccessToken - Making request', [
+                'url' => $this->baseUrl.'/get-access-token',
+                'app_id' => $requestBody['app_id'],
+                'has_app_secret' => isset($this->credentials['app_secret']),
+            ]);
+
             $response = Http::post($this->baseUrl.'/get-access-token', [
                 'app_id' => $this->credentials['app_id'],
                 'app_secret' => $this->credentials['app_secret'],
             ]);
+
+            $responseStatus = $response->status();
             $payload = $response->json();
             $token = $payload['data'] ?? null;
 
+            Log::info('EasylinkPaymentGateway - getAccessToken - Response received', [
+                'http_status' => $responseStatus,
+                'has_data' => isset($payload['data']),
+                'response_structure' => array_keys($payload ?? []),
+            ]);
+
             if (is_array($token)) {
                 $token = $token['access_token'] ?? $token['token'] ?? reset($token);
+                Log::debug('EasylinkPaymentGateway - getAccessToken - Extracted token from array', [
+                    'token_keys' => array_keys($token ?? []),
+                ]);
             }
 
             if (! is_string($token) || $token === '') {
+                Log::error('EasylinkPaymentGateway - getAccessToken - Invalid token response', [
+                    'token_type' => gettype($token),
+                    'token_empty' => $token === '',
+                    'payload' => $payload,
+                ]);
                 throw new RuntimeException('Invalid access token response from Easylink API.');
             }
 
             $this->accessToken = $token;
-            Log::info('Easylink Access Token Response', ['response' => $payload]);
+            Log::info('EasylinkPaymentGateway - getAccessToken - Token retrieved successfully', [
+                'token_length' => strlen($this->accessToken),
+                'token_prefix' => substr($this->accessToken, 0, 10).'...',
+                'full_response' => $payload,
+            ]);
         } catch (ConnectionException $e) {
+            Log::error('EasylinkPaymentGateway - getAccessToken - Connection exception', [
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'base_url' => $this->baseUrl,
+                'trace' => $e->getTraceAsString(),
+            ]);
             throw new RuntimeException('Failed to connect to Easylink API.');
+        } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - getAccessToken - General exception', [
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
     }
 
@@ -133,15 +198,38 @@ class EasylinkPaymentGateway
      */
     public function headers(array $body): array
     {
+        Log::debug('EasylinkPaymentGateway - headers - Method called', [
+            'body_keys' => array_keys($body),
+            'has_access_token' => isset($this->accessToken),
+        ]);
+
         $common = [
             'X-EasyLink-AppKey' => $this->credentials['app_key'],
             'X-EasyLink-Nonce' => (string) Str::uuid()->toString(),
             'X-EasyLink-Timestamp' => (string) Carbon::now()->getPreciseTimestamp(3),
         ];
 
-        $signature = $this->signature($common, $body);
+        Log::debug('EasylinkPaymentGateway - headers - Common headers prepared', [
+            'app_key' => $this->credentials['app_key'] ?? null,
+            'nonce' => $common['X-EasyLink-Nonce'],
+            'timestamp' => $common['X-EasyLink-Timestamp'],
+        ]);
 
-        return [
+        try {
+            $signature = $this->signature($common, $body);
+            Log::debug('EasylinkPaymentGateway - headers - Signature generated', [
+                'signature_length' => strlen($signature),
+                'signature_prefix' => substr($signature, 0, 20).'...',
+            ]);
+        } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - headers - Signature generation failed', [
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw $e;
+        }
+
+        $headers = [
             'Content-type' => 'application/json',
             'Authorization' => 'Bearer '.$this->accessToken,
             'X-EasyLink-AppKey' => $common['X-EasyLink-AppKey'],
@@ -149,6 +237,14 @@ class EasylinkPaymentGateway
             'X-EasyLink-Timestamp' => $common['X-EasyLink-Timestamp'],
             'X-EasyLink-Sign' => $signature,
         ];
+
+        Log::debug('EasylinkPaymentGateway - headers - Headers prepared', [
+            'header_keys' => array_keys($headers),
+            'authorization_prefix' => substr($headers['Authorization'], 0, 20).'...',
+            'signature_prefix' => substr($signature, 0, 20).'...',
+        ]);
+
+        return $headers;
     }
 
     /**
@@ -162,6 +258,11 @@ class EasylinkPaymentGateway
      */
     protected function signature(array $common, array $body): string
     {
+        Log::debug('EasylinkPaymentGateway - signature - Method called', [
+            'common_keys' => array_keys($common),
+            'body_keys' => array_keys($body),
+        ]);
+
         $params = array_merge($body, $common);
         ksort($params);
 
@@ -171,13 +272,24 @@ class EasylinkPaymentGateway
 
         $signData = $this->credentials['app_key'].$originStr.$this->credentials['app_key'];
 
+        Log::debug('EasylinkPaymentGateway - signature - Sign data prepared', [
+            'origin_str_length' => strlen($originStr),
+            'sign_data_length' => strlen($signData),
+            'has_app_key' => isset($this->credentials['app_key']),
+        ]);
+
         $attemptedPath = 'inline';
         $credentialKey = $this->credentials['private_key'] ?? null;
 
         if (! empty($credentialKey)) {
+            Log::debug('EasylinkPaymentGateway - signature - Using credential key', [
+                'key_type' => str_starts_with($credentialKey, '-----BEGIN') ? 'inline_pem' : 'path',
+            ]);
+
             // If credentials provide inline PEM content
             if (str_starts_with($credentialKey, '-----BEGIN')) {
                 $privateKeyContent = $credentialKey;
+                Log::debug('EasylinkPaymentGateway - signature - Using inline PEM key');
             } else {
                 // Treat credential value as a path (support file:// prefix)
                 $path = $credentialKey;
@@ -186,49 +298,103 @@ class EasylinkPaymentGateway
                 }
                 $attemptedPath = $path;
 
+                Log::debug('EasylinkPaymentGateway - signature - Attempting to load key from path', [
+                    'path' => $attemptedPath,
+                    'file_exists' => file_exists($path),
+                ]);
+
                 if (file_exists($path)) {
                     $privateKeyContent = file_get_contents($path);
+                    Log::debug('EasylinkPaymentGateway - signature - Key loaded from file', [
+                        'file_size' => strlen($privateKeyContent),
+                    ]);
                 } else {
                     // Fallback: use the credential string as content
                     $privateKeyContent = $credentialKey;
+                    Log::debug('EasylinkPaymentGateway - signature - Using credential as key content (fallback)');
                 }
             }
         } else {
             // Resolve key path by app mode with fallback
-            if (config('app.mode') === 'sandbox') {
+            $appMode = config('app.mode');
+            if ($appMode === 'sandbox') {
                 $privateKeyPath = storage_path('app/keys/sandbox/private_key.pem');
             } else {
                 $privateKeyPath = storage_path('app/keys/production/private_key.pem');
             }
             $attemptedPath = $privateKeyPath;
 
+            Log::debug('EasylinkPaymentGateway - signature - Resolving key path', [
+                'app_mode' => $appMode,
+                'primary_path' => $privateKeyPath,
+                'primary_exists' => file_exists($privateKeyPath),
+            ]);
+
             if (! file_exists($privateKeyPath)) {
                 // Fallback to default keys path
                 $fallbackPath = storage_path('app/keys/private_key.pem');
                 $attemptedPath = $fallbackPath;
+                Log::debug('EasylinkPaymentGateway - signature - Trying fallback path', [
+                    'fallback_path' => $fallbackPath,
+                    'fallback_exists' => file_exists($fallbackPath),
+                ]);
+
                 if (! file_exists($fallbackPath)) {
+                    Log::error('EasylinkPaymentGateway - signature - Private key file not found', [
+                        'primary_path' => $privateKeyPath,
+                        'fallback_path' => $fallbackPath,
+                    ]);
                     throw new RuntimeException('Private key file not found at: '.$privateKeyPath.' and fallback: '.$fallbackPath);
                 }
                 $privateKeyPath = $fallbackPath;
             }
 
             $privateKeyContent = file_get_contents($privateKeyPath);
+            Log::debug('EasylinkPaymentGateway - signature - Key loaded from resolved path', [
+                'path' => $privateKeyPath,
+                'file_size' => strlen($privateKeyContent),
+            ]);
         }
 
         $passphrase = $this->credentials['private_key_passphrase'] ?? null;
+        Log::debug('EasylinkPaymentGateway - signature - Loading private key', [
+            'has_passphrase' => $passphrase !== null,
+            'key_path' => $attemptedPath,
+        ]);
+
         $privateKey = $passphrase !== null
             ? openssl_pkey_get_private($privateKeyContent, $passphrase)
             : openssl_pkey_get_private($privateKeyContent);
 
         if (! $privateKey) {
+            $error = openssl_error_string();
+            Log::error('EasylinkPaymentGateway - signature - Invalid private key', [
+                'attempted_path' => $attemptedPath,
+                'has_passphrase' => $passphrase !== null,
+                'openssl_error' => $error,
+            ]);
             throw new RuntimeException('Invalid private key. Attempted: '.$attemptedPath);
         }
 
+        Log::debug('EasylinkPaymentGateway - signature - Signing data', [
+            'sign_data_length' => strlen($signData),
+            'algorithm' => 'SHA256',
+        ]);
+
         if (! openssl_sign($signData, $signatureBytes, $privateKey, OPENSSL_ALGO_SHA256)) {
+            $error = openssl_error_string();
+            Log::error('EasylinkPaymentGateway - signature - Failed to generate signature', [
+                'openssl_error' => $error,
+            ]);
             throw new RuntimeException('Failed to generate signature.');
         }
 
-        return base64_encode($signatureBytes);
+        $signature = base64_encode($signatureBytes);
+        Log::debug('EasylinkPaymentGateway - signature - Signature generated successfully', [
+            'signature_length' => strlen($signature),
+        ]);
+
+        return $signature;
     }
 
     /**
@@ -345,42 +511,95 @@ class EasylinkPaymentGateway
      */
     private function makeEasylinkRequest(string $endpoint, array $body, string $cacheFileName): object
     {
+        Log::info('EasylinkPaymentGateway - makeEasylinkRequest - Method started', [
+            'endpoint' => $endpoint,
+            'cache_file' => $cacheFileName,
+            'body_keys' => array_keys($body),
+        ]);
+
         $cacheFilePath = storage_path('app/'.$cacheFileName);
 
         // Check if cache file exists
         if (file_exists($cacheFilePath)) {
+            Log::info('EasylinkPaymentGateway - makeEasylinkRequest - Using cached data', [
+                'cache_file' => $cacheFilePath,
+            ]);
             $cachedData = json_decode(file_get_contents($cacheFilePath));
 
             return (object) $cachedData->data;
         }
 
+        Log::debug('EasylinkPaymentGateway - makeEasylinkRequest - Cache not found, making API request', [
+            'cache_file' => $cacheFilePath,
+        ]);
+
         // File doesn't exist, make API request
         $this->getAccessToken();
 
-        $response = Http::timeout(60)->withHeaders($this->headers($body))
-            ->post($this->baseUrl.$endpoint, $body);
+        $requestUrl = $this->baseUrl.$endpoint;
+        Log::info('EasylinkPaymentGateway - makeEasylinkRequest - Making API request', [
+            'url' => $requestUrl,
+            'method' => 'POST',
+            'body' => $body,
+        ]);
 
-        $responseData = $response->object();
-        Log::info(json_encode($responseData));
+        try {
+            $response = Http::timeout(60)->withHeaders($this->headers($body))
+                ->post($requestUrl, $body);
 
-        if (isset($responseData->err_code)) {
-            $errorMessage = $this->handleInternalErrorCode($responseData->err_code ?? 1);
-            Log::error($errorMessage);
-            throw new Exception($errorMessage);
-        } elseif (($responseData->code ?? 1) !== 0) {
-            $errorMessage = $this->handleInternalErrorCode($responseData->code ?? 1);
-            Log::error($errorMessage);
-            throw new Exception($errorMessage);
+            $responseStatus = $response->status();
+            $responseData = $response->object();
+
+            Log::info('EasylinkPaymentGateway - makeEasylinkRequest - API response received', [
+                'http_status' => $responseStatus,
+                'response_code' => $responseData->code ?? null,
+                'has_err_code' => isset($responseData->err_code),
+                'has_data' => isset($responseData->data),
+                'full_response' => $responseData,
+            ]);
+
+            if (isset($responseData->err_code)) {
+                $errorMessage = $this->handleInternalErrorCode($responseData->err_code ?? 1);
+                Log::error('EasylinkPaymentGateway - makeEasylinkRequest - Error in response', [
+                    'err_code' => $responseData->err_code,
+                    'error_message' => $errorMessage,
+                    'full_response' => $responseData,
+                ]);
+                throw new Exception($errorMessage);
+            } elseif (($responseData->code ?? 1) !== 0) {
+                $errorMessage = $this->handleInternalErrorCode($responseData->code ?? 1);
+                Log::error('EasylinkPaymentGateway - makeEasylinkRequest - Non-zero response code', [
+                    'code' => $responseData->code,
+                    'error_message' => $errorMessage,
+                    'full_response' => $responseData,
+                ]);
+                throw new Exception($errorMessage);
+            }
+
+            // Cache response data to JSON file
+            $directory = dirname($cacheFilePath);
+            if (! is_dir($directory)) {
+                mkdir($directory, 0755, true);
+                Log::debug('EasylinkPaymentGateway - makeEasylinkRequest - Created cache directory', [
+                    'directory' => $directory,
+                ]);
+            }
+
+            file_put_contents($cacheFilePath, json_encode($responseData, JSON_PRETTY_PRINT));
+            Log::info('EasylinkPaymentGateway - makeEasylinkRequest - Response cached', [
+                'cache_file' => $cacheFilePath,
+            ]);
+
+            return (object) $responseData->data;
+        } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - makeEasylinkRequest - Exception occurred', [
+                'endpoint' => $endpoint,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
-
-        // Cache response data to JSON file
-        $directory = dirname($cacheFilePath);
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-        file_put_contents($cacheFilePath, json_encode($responseData, JSON_PRETTY_PRINT));
-
-        return (object) $responseData->data;
     }
 
     /**
@@ -404,11 +623,30 @@ class EasylinkPaymentGateway
      */
     public function getBankList(string $country = 'IDN'): object
     {
-        return $this->makeEasylinkRequest(
-            '/v2/data/supported-bank-code',
-            ['country' => $country],
-            "easylink/bank_list_{$country}.json"
-        );
+        Log::info('EasylinkPaymentGateway - getBankList - Method called', [
+            'country' => $country,
+        ]);
+
+        try {
+            $result = $this->makeEasylinkRequest(
+                '/v2/data/supported-bank-code',
+                ['country' => $country],
+                "easylink/bank_list_{$country}.json"
+            );
+
+            Log::info('EasylinkPaymentGateway - getBankList - Success', [
+                'country' => $country,
+                'result_type' => gettype($result),
+            ]);
+
+            return $result;
+        } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - getBankList - Failed', [
+                'country' => $country,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -420,11 +658,32 @@ class EasylinkPaymentGateway
      */
     public function getBranchList(string $country = 'IDN', string $bankCode = '002'): object
     {
-        return $this->makeEasylinkRequest(
-            '/data/branch-list',
-            ['country' => $country, 'bank_code' => $bankCode],
-            "easylink/branch_list_{$country}_{$bankCode}.json"
-        );
+        Log::info('EasylinkPaymentGateway - getBranchList - Method called', [
+            'country' => $country,
+            'bank_code' => $bankCode,
+        ]);
+
+        try {
+            $result = $this->makeEasylinkRequest(
+                '/data/branch-list',
+                ['country' => $country, 'bank_code' => $bankCode],
+                "easylink/branch_list_{$country}_{$bankCode}.json"
+            );
+
+            Log::info('EasylinkPaymentGateway - getBranchList - Success', [
+                'country' => $country,
+                'bank_code' => $bankCode,
+            ]);
+
+            return $result;
+        } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - getBranchList - Failed', [
+                'country' => $country,
+                'bank_code' => $bankCode,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -434,11 +693,24 @@ class EasylinkPaymentGateway
      */
     public function getWalletList(): object
     {
-        return $this->makeEasylinkRequest(
-            '/v2/data/supported-inst-code',
-            [],
-            'easylink/wallet_list.json'
-        );
+        Log::info('EasylinkPaymentGateway - getWalletList - Method called');
+
+        try {
+            $result = $this->makeEasylinkRequest(
+                '/v2/data/supported-inst-code',
+                [],
+                'easylink/wallet_list.json'
+            );
+
+            Log::info('EasylinkPaymentGateway - getWalletList - Success');
+
+            return $result;
+        } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - getWalletList - Failed', [
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -448,11 +720,24 @@ class EasylinkPaymentGateway
      */
     public function getVaAccountList(): object
     {
-        return $this->makeEasylinkRequest(
-            '/virtual-account/get-available-virtual-account-banks',
-            [],
-            'easylink/va_account_list.json'
-        );
+        Log::info('EasylinkPaymentGateway - getVaAccountList - Method called');
+
+        try {
+            $result = $this->makeEasylinkRequest(
+                '/virtual-account/get-available-virtual-account-banks',
+                [],
+                'easylink/va_account_list.json'
+            );
+
+            Log::info('EasylinkPaymentGateway - getVaAccountList - Success');
+
+            return $result;
+        } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - getVaAccountList - Failed', [
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -467,30 +752,128 @@ class EasylinkPaymentGateway
      */
     public function verifyBankAccount(string $bankId, string $accountNumber, string $paymentMethod): bool
     {
+        Log::info('Easylink verifyBankAccount - Method started', [
+            'bank_id' => $bankId,
+            'account_number' => $accountNumber,
+            'payment_method' => $paymentMethod,
+            'base_url' => $this->baseUrl,
+            'is_sandbox' => $this->isSandbox(),
+        ]);
+
         $body = [
             'account_number' => $accountNumber,
             'bank_id' => $bankId,
             'payment_method' => $paymentMethod,
         ];
 
-        $this->getAccessToken();
+        Log::debug('Easylink verifyBankAccount - Request body prepared', [
+            'body' => $body,
+        ]);
 
         try {
-            $response = Http::timeout(60)->withHeaders($this->headers($body))
-                ->post($this->baseUrl.'/v2/transfer/verify-bank-account', $body);
+            Log::debug('Easylink verifyBankAccount - Getting access token');
+            $this->getAccessToken();
+            Log::debug('Easylink verifyBankAccount - Access token retrieved', [
+                'token_length' => strlen($this->accessToken),
+                'token_prefix' => substr($this->accessToken, 0, 10).'...',
+            ]);
 
+            $headers = $this->headers($body);
+            $requestUrl = $this->baseUrl.'/v2/transfer/verify-bank-account';
+
+            Log::info('Easylink verifyBankAccount - Making API request', [
+                'url' => $requestUrl,
+                'method' => 'POST',
+                'timeout' => 60,
+                'headers' => [
+                    'Content-type' => $headers['Content-type'] ?? null,
+                    'Authorization' => isset($headers['Authorization']) ? substr($headers['Authorization'], 0, 20).'...' : null,
+                    'X-EasyLink-AppKey' => $headers['X-EasyLink-AppKey'] ?? null,
+                    'X-EasyLink-Nonce' => $headers['X-EasyLink-Nonce'] ?? null,
+                    'X-EasyLink-Timestamp' => $headers['X-EasyLink-Timestamp'] ?? null,
+                    'X-EasyLink-Sign' => isset($headers['X-EasyLink-Sign']) ? substr($headers['X-EasyLink-Sign'], 0, 20).'...' : null,
+                ],
+                'body' => $body,
+            ]);
+
+            $response = Http::timeout(60)->withHeaders($headers)
+                ->post($requestUrl, $body);
+
+            $responseStatus = $response->status();
+            $responseHeaders = $response->headers();
+            $responseBody = $response->body();
             $responseData = $response->object();
-            Log::info('Verify Bank Account Response Data', ['responseData' => $responseData]);
+
+            Log::info('Easylink verifyBankAccount - API response received', [
+                'http_status' => $responseStatus,
+                'response_headers' => $responseHeaders,
+                'response_body_raw' => $responseBody,
+                'response_data' => $responseData,
+            ]);
 
             if ($responseData->code === 0) {
+                Log::info('Easylink verifyBankAccount - Bank account verification successful', [
+                    'bank_id' => $bankId,
+                    'account_number' => $accountNumber,
+                    'payment_method' => $paymentMethod,
+                    'response_code' => $responseData->code,
+                ]);
+
                 return true;
             } else {
                 $errorMessage = $this->handleInternalErrorCode($responseData->code);
-                Log::error($errorMessage);
+                Log::error('Easylink verifyBankAccount - Bank account verification failed', [
+                    'bank_id' => $bankId,
+                    'account_number' => $accountNumber,
+                    'payment_method' => $paymentMethod,
+                    'response_code' => $responseData->code,
+                    'error_message' => $errorMessage,
+                    'full_response' => $responseData,
+                ]);
 
                 return false;
             }
+        } catch (ConnectionException $e) {
+            Log::error('Easylink verifyBankAccount - Connection exception', [
+                'bank_id' => $bankId,
+                'account_number' => $accountNumber,
+                'payment_method' => $paymentMethod,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw new Exception($this->handleApiResponseError($e));
+        } catch (RequestException $e) {
+            $response = $e->response;
+            Log::error('Easylink verifyBankAccount - Request exception', [
+                'bank_id' => $bankId,
+                'account_number' => $accountNumber,
+                'payment_method' => $paymentMethod,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'http_status' => $response ? $response->status() : null,
+                'response_body' => $response ? $response->body() : null,
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw new Exception($this->handleApiResponseError($e));
         } catch (Exception $e) {
+            Log::error('Easylink verifyBankAccount - General exception', [
+                'bank_id' => $bankId,
+                'account_number' => $accountNumber,
+                'payment_method' => $paymentMethod,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             throw new Exception($this->handleApiResponseError($e));
         }
     }
@@ -498,14 +881,22 @@ class EasylinkPaymentGateway
     /**
      * Lists all remittance transactions from the Bank Partner API.
      *
-     * @param  string  $startDate  The start date of the remittance transactions.
-     * @param  string  $endDate  The end date of the remittance transactions.
-     * @param  string  $pageSize  The page size of the remittance transactions.
-     * @param  string  $pageNumber  The page number of the remittance transactions.
-     * @return object The response object from the API.
+     * @param string $startDate The start date of the remittance transactions.
+     * @param string $endDate The end date of the remittance transactions.
+     * @param string|null $pageSize The page size of the remittance transactions.
+     * @param string|null $pageNumber The page number of the remittance transactions.
+     * @return object|bool The response object from the API.
+     * @throws Exception
      */
     public function getRemittanceList(string $startDate, string $endDate, ?string $pageSize = null, ?string $pageNumber = null): object|bool
     {
+        Log::info('EasylinkPaymentGateway - getRemittanceList - Method started', [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'page_size' => $pageSize,
+            'page_number' => $pageNumber,
+        ]);
+
         $body = [
             'start_datetime' => $startDate,
             'end_datetime' => $endDate,
@@ -516,15 +907,31 @@ class EasylinkPaymentGateway
         $this->getAccessToken();
 
         try {
-            $response = Http::timeout(60)->withHeaders($this->headers($body))
-                ->post($this->baseUrl.'/transfer/get-remittance-list', $body);
+            $requestUrl = $this->baseUrl.'/transfer/get-remittance-list';
+            Log::info('EasylinkPaymentGateway - getRemittanceList - Making API request', [
+                'url' => $requestUrl,
+                'body' => $body,
+            ]);
 
+            $response = Http::timeout(60)->withHeaders($this->headers($body))
+                ->post($requestUrl, $body);
+
+            $responseStatus = $response->status();
             $response->throw();
 
             $responseData = $response->object();
-            Log::info('Easylink Response Data', ['responseData' => $responseData]);
+            Log::info('EasylinkPaymentGateway - getRemittanceList - Response received', [
+                'http_status' => $responseStatus,
+                'response_code' => $responseData->code ?? null,
+                'has_err_code' => isset($responseData->err_code),
+                'full_response' => $responseData,
+            ]);
 
             if (isset($responseData->err_code)) {
+                Log::error('EasylinkPaymentGateway - getRemittanceList - Error code in response', [
+                    'err_code' => $responseData->err_code,
+                    'message' => $responseData->message ?? null,
+                ]);
                 throw new Exception($responseData->message);
             }
 
@@ -532,36 +939,54 @@ class EasylinkPaymentGateway
                 $stateLabel = $this->getStateLabel($responseData->data->state ?? 0);
                 $responseData->data->state_label = $stateLabel;
 
+                Log::info('EasylinkPaymentGateway - getRemittanceList - Success', [
+                    'state' => $responseData->data->state ?? null,
+                    'state_label' => $stateLabel,
+                ]);
+
                 return $responseData->data;
             } elseif ($errorMessage = $this->handleInternalErrorCode($responseData->code)) {
-                Log::error($errorMessage);
+                Log::error('EasylinkPaymentGateway - getRemittanceList - Error', [
+                    'response_code' => $responseData->code,
+                    'error_message' => $errorMessage,
+                ]);
 
                 if ($errorMessage === 'Duplicate reference.') {
+                    Log::warning('EasylinkPaymentGateway - getRemittanceList - Duplicate reference detected');
 
                     if (isset($transaction->trx_data['easylink_disbursement'])) {
                         return (object) $transaction->trx_data['easylink_disbursement'];
                     }
 
                     return (object) [
-                        'state' => TransferState::CREATE, // Default state for create
+                        'state' => TransferState::CREATE,
                         'message' => 'Duplicate Reference',
                     ];
                 }
 
                 return (object) [
-                    'state' => TransferState::FAILED, // Default state for failure
+                    'state' => TransferState::FAILED,
                     'message' => $errorMessage,
                 ];
             } else {
                 $errorMessage = 'Unknown internal error: '.$responseData->code.' with response message: '.$responseData->message;
-                Log::error($errorMessage);
+                Log::error('EasylinkPaymentGateway - getRemittanceList - Unknown error', [
+                    'response_code' => $responseData->code,
+                    'response_message' => $responseData->message ?? null,
+                    'error_message' => $errorMessage,
+                ]);
 
                 return (object) [
-                    'state' => TransferState::FAILED, // Default state for failure
+                    'state' => TransferState::FAILED,
                     'message' => $errorMessage,
                 ];
             }
         } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - getRemittanceList - Exception', [
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
             throw new Exception($this->handleApiResponseError($e));
         }
     }
@@ -576,25 +1001,57 @@ class EasylinkPaymentGateway
      */
     public function createDomesticTransfer(Transaction $transaction): object|bool
     {
-        $withdrawalAccount = $transaction->trx_data['withdrawal_account'];
+        Log::info('EasylinkPaymentGateway - createDomesticTransfer - Method started', [
+            'transaction_id' => $transaction->trx_id,
+            'provider' => $transaction->provider,
+            'net_amount' => $transaction->net_amount,
+            'is_sandbox' => $this->isSandbox(),
+        ]);
+
+        $withdrawalAccount = $transaction->trx_data['withdrawal_account'] ?? null;
+
+        if (! $withdrawalAccount) {
+            Log::error('EasylinkPaymentGateway - createDomesticTransfer - Missing withdrawal account data', [
+                'transaction_id' => $transaction->trx_id,
+            ]);
+            throw new InvalidArgumentException('Missing withdrawal account data in transaction.');
+        }
 
         $bankId = $withdrawalAccount['account_bank_code'] ?? null;
         $accNo = $withdrawalAccount['account_number'] ?? null;
         $accName = $withdrawalAccount['account_holder_name'] ?? null;
+
+        Log::debug('EasylinkPaymentGateway - createDomesticTransfer - Account details extracted', [
+            'bank_id' => $bankId,
+            'account_number' => $accNo,
+            'account_holder_name' => $accName,
+        ]);
 
         if ($this->isSandbox()) {
             // In sandbox mode, override the account details with test values
             $bankId = '2'; // Example bank code for MANDIRI
             $accNo = '8730700000000001'; // Example account number
             $accName = 'Andohar Erwin Juniarta'; // Example account holder name
+            Log::info('EasylinkPaymentGateway - createDomesticTransfer - Using sandbox test account', [
+                'bank_id' => $bankId,
+                'account_number' => $accNo,
+            ]);
         }
 
         if (! $bankId || ! $accNo || ! $accName) {
+            Log::error('EasylinkPaymentGateway - createDomesticTransfer - Missing required account data', [
+                'has_bank_id' => !empty($bankId),
+                'has_account_number' => !empty($accNo),
+                'has_account_name' => !empty($accName),
+            ]);
             throw new InvalidArgumentException('Missing required transaction data for Bank Partner transfer.');
         }
 
         $payoutMethodCode = PayoutMethod::fromProviderName($transaction->provider);
         if ($payoutMethodCode === 0) {
+            Log::error('EasylinkPaymentGateway - createDomesticTransfer - Unsupported payout method', [
+                'provider' => $transaction->provider,
+            ]);
             throw new InvalidArgumentException('Unsupported Payout Method Code.');
         }
 
@@ -609,21 +1066,47 @@ class EasylinkPaymentGateway
             'payment_method' => (string) $payoutMethodCode,
         ];
 
+        Log::info('EasylinkPaymentGateway - createDomesticTransfer - Request body prepared', [
+            'body' => $body,
+        ]);
+
         $this->getAccessToken();
-        Log::info('Easylink Body', $body);
-        Log::info('Easylink Headers', $this->headers($body));
-        Log::info('Easylink BaseUrl', ['base_url' => $this->baseUrl]);
-        Log::info('Easylink Access Token', ['token' => $this->accessToken]);
+
+        $headers = $this->headers($body);
+        Log::info('EasylinkPaymentGateway - createDomesticTransfer - Headers prepared', [
+            'header_keys' => array_keys($headers),
+            'base_url' => $this->baseUrl,
+        ]);
 
         try {
-            $response = Http::timeout(60)->withHeaders($this->headers($body))
-                ->post($this->baseUrl.'/v2/transfer/create-domestic-transfer', $body);
+            $requestUrl = $this->baseUrl.'/v2/transfer/create-domestic-transfer';
+            Log::info('EasylinkPaymentGateway - createDomesticTransfer - Making API request', [
+                'url' => $requestUrl,
+                'transaction_id' => $transaction->trx_id,
+            ]);
 
+            $response = Http::timeout(60)->withHeaders($headers)
+                ->post($requestUrl, $body);
+
+            $responseStatus = $response->status();
             $response->throw();
 
             $responseData = $response->object();
 
+            Log::info('EasylinkPaymentGateway - createDomesticTransfer - Response received', [
+                'http_status' => $responseStatus,
+                'response_code' => $responseData->code ?? null,
+                'has_err_code' => isset($responseData->err_code),
+                'has_data' => isset($responseData->data),
+                'full_response' => $responseData,
+            ]);
+
             if (isset($responseData->err_code)) {
+                Log::error('EasylinkPaymentGateway - createDomesticTransfer - Error code in response', [
+                    'err_code' => $responseData->err_code,
+                    'message' => $responseData->message ?? null,
+                    'transaction_id' => $transaction->trx_id,
+                ]);
                 throw new Exception($responseData->message);
             }
 
@@ -631,48 +1114,76 @@ class EasylinkPaymentGateway
                 $stateLabel = $this->getStateLabel($responseData->data->state ?? 0);
                 $responseData->data->state_label = $stateLabel;
 
+                Log::info('EasylinkPaymentGateway - createDomesticTransfer - Transfer created successfully', [
+                    'transaction_id' => $transaction->trx_id,
+                    'state' => $responseData->data->state ?? null,
+                    'state_label' => $stateLabel,
+                ]);
+
                 return $responseData->data;
             } elseif ($errorMessage = $this->handleInternalErrorCode($responseData->code)) {
-                Log::error($errorMessage);
+                Log::error('EasylinkPaymentGateway - createDomesticTransfer - Error response', [
+                    'response_code' => $responseData->code,
+                    'error_message' => $errorMessage,
+                    'transaction_id' => $transaction->trx_id,
+                ]);
 
                 if ($errorMessage === 'Duplicate reference.') {
+                    Log::warning('EasylinkPaymentGateway - createDomesticTransfer - Duplicate reference', [
+                        'transaction_id' => $transaction->trx_id,
+                    ]);
 
                     if (isset($transaction->trx_data['easylink_disbursement'])) {
                         return (object) $transaction->trx_data['easylink_disbursement'];
                     }
 
                     return (object) [
-                        'state' => TransferState::CREATE, // Default state for create
+                        'state' => TransferState::CREATE,
                         'message' => 'Duplicate Reference',
                     ];
                 }
 
                 return (object) [
-                    'state' => TransferState::FAILED, // Default state for failure
+                    'state' => TransferState::FAILED,
                     'message' => $errorMessage,
                 ];
             } else {
                 $errorMessage = 'Unknown internal error: '.$responseData->code.' with response message: '.$responseData->message;
-                Log::error($errorMessage);
+                Log::error('EasylinkPaymentGateway - createDomesticTransfer - Unknown error', [
+                    'response_code' => $responseData->code,
+                    'response_message' => $responseData->message ?? null,
+                    'error_message' => $errorMessage,
+                    'transaction_id' => $transaction->trx_id,
+                ]);
 
                 return (object) [
-                    'state' => TransferState::FAILED, // Default state for failure
+                    'state' => TransferState::FAILED,
                     'message' => $errorMessage,
                 ];
             }
         } catch (Exception $e) {
             if ($e->getMessage() === 'Duplicate reference.') {
-                Log::error($e->getMessage());
+                Log::warning('EasylinkPaymentGateway - createDomesticTransfer - Duplicate reference exception', [
+                    'transaction_id' => $transaction->trx_id,
+                    'error' => $e->getMessage(),
+                ]);
 
                 if (isset($transaction->trx_data['easylink_disbursement'])) {
                     return (object) $transaction->trx_data['easylink_disbursement'];
                 }
 
                 return (object) [
-                    'state' => TransferState::CREATE, // Default state for create
+                    'state' => TransferState::CREATE,
                     'message' => 'Duplicate Reference',
                 ];
             }
+
+            Log::error('EasylinkPaymentGateway - createDomesticTransfer - Exception', [
+                'transaction_id' => $transaction->trx_id,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             throw new Exception($this->handleApiResponseError($e));
         }
@@ -686,41 +1197,73 @@ class EasylinkPaymentGateway
      */
     public function getDomesticTransferUpdate(string $referenceId): object
     {
+        Log::info('EasylinkPaymentGateway - getDomesticTransferUpdate - Method started', [
+            'reference_id' => $referenceId,
+        ]);
+
         $body = [
             'reference' => $referenceId,
         ];
         $this->getAccessToken();
 
         try {
-            $response = Http::timeout(60)->withHeaders($this->headers($body))
-                ->post($this->baseUrl.'/transfer/get-domestic-transfer', $body);
+            $requestUrl = $this->baseUrl.'/transfer/get-domestic-transfer';
+            Log::info('EasylinkPaymentGateway - getDomesticTransferUpdate - Making API request', [
+                'url' => $requestUrl,
+                'reference_id' => $referenceId,
+            ]);
 
+            $response = Http::timeout(60)->withHeaders($this->headers($body))
+                ->post($requestUrl, $body);
+
+            $responseStatus = $response->status();
             $response->throw();
 
             $responseData = $response->object();
-            Log::info('Easylink Get Domestic Transfer Update Response Data', ['responseData' => $responseData]);
+            Log::info('EasylinkPaymentGateway - getDomesticTransferUpdate - Response received', [
+                'http_status' => $responseStatus,
+                'response_code' => $responseData->code ?? null,
+                'reference_id' => $referenceId,
+                'full_response' => $responseData,
+            ]);
 
             if ($responseData->code === 0) {
                 $stateLabel = $this->getStateLabel($responseData->data->state ?? 0);
                 $responseData->data->state_label = $stateLabel;
+
+                Log::info('EasylinkPaymentGateway - getDomesticTransferUpdate - Success', [
+                    'reference_id' => $referenceId,
+                    'state' => $responseData->data->state ?? null,
+                    'state_label' => $stateLabel,
+                ]);
             } else {
                 $errorMessage = $this->handleInternalErrorCode($responseData->code);
 
-                Log::error($errorMessage);
+                Log::error('EasylinkPaymentGateway - getDomesticTransferUpdate - Error response', [
+                    'reference_id' => $referenceId,
+                    'response_code' => $responseData->code,
+                    'error_message' => $errorMessage,
+                ]);
 
                 return (object) [
-                    'state' => TransferState::FAILED, // Default state for failure
+                    'state' => TransferState::FAILED,
                     'message' => $errorMessage,
                 ];
             }
 
             return $responseData;
         } catch (Exception $e) {
-            // throw new Exception($this->handleApiResponseError($e));
-            Log::error($e->getMessage());
+            Log::error('EasylinkPaymentGateway - getDomesticTransferUpdate - Exception', [
+                'reference_id' => $referenceId,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return (object) [
-                'state' => TransferState::FAILED, // Default state for failure
+                'state' => TransferState::FAILED,
                 'message' => $e->getMessage(),
             ];
         }
@@ -738,12 +1281,23 @@ class EasylinkPaymentGateway
      */
     public function verifyDomesticTransfer(Transaction $transaction): bool
     {
+        Log::info('EasylinkPaymentGateway - verifyDomesticTransfer - Method started', [
+            'transaction_id' => $transaction->trx_id,
+            'transaction_status' => $transaction->status->value ?? null,
+        ]);
+
         $settlementData = $this->getDomesticTransferUpdate($transaction->trx_id);
 
         $payload = $settlementData->data ?? null;
 
+        Log::debug('EasylinkPaymentGateway - verifyDomesticTransfer - Settlement data received', [
+            'transaction_id' => $transaction->trx_id,
+            'has_payload' => $payload !== null,
+            'payload_empty' => empty((array) $payload),
+        ]);
+
         if (empty((array) $payload)) {
-            Log::error('Easylink Domestic Transfer Update payload empty.', [
+            Log::error('EasylinkPaymentGateway - verifyDomesticTransfer - Payload empty', [
                 'settlementData' => $settlementData,
                 'transactionId' => $transaction->trx_id,
             ]);
@@ -751,7 +1305,16 @@ class EasylinkPaymentGateway
             $remarks = 'Withdrawal request is failed on Financial Institution: '.($settlementData->data->message ?? '');
             $description = 'Withdrawal request is failed on Bank Partner: '.($settlementData->data->message ?? '');
 
+            Log::info('EasylinkPaymentGateway - verifyDomesticTransfer - Refunding transaction', [
+                'transaction_id' => $transaction->trx_id,
+                'remarks' => $remarks,
+            ]);
+
             app(TransactionService::class)->refundTransaction($transaction->trx_id, $remarks, $description);
+
+            Log::info('EasylinkPaymentGateway - verifyDomesticTransfer - Sending webhook', [
+                'transaction_id' => $transaction->trx_id,
+            ]);
 
             return app(WebhookService::class)->sendWithdrawalWebhook($transaction, $description);
         }
@@ -772,6 +1335,12 @@ class EasylinkPaymentGateway
             'reason' => $payload->reason,
         ];
 
+        Log::info('EasylinkPaymentGateway - verifyDomesticTransfer - Updating settlement data', [
+            'transaction_id' => $transaction->trx_id,
+            'state' => $data['state'] ?? null,
+            'disbursement_id' => $data['disbursement_id'] ?? null,
+        ]);
+
         return $this->updateSettlementTransactionData($transaction, $data);
     }
 
@@ -784,31 +1353,58 @@ class EasylinkPaymentGateway
      */
     public function getAccountBalances(): object
     {
+        Log::info('EasylinkPaymentGateway - getAccountBalances - Method started');
+
         $this->getAccessToken();
         $body = [];
 
         try {
+            $requestUrl = $this->baseUrl.'/finance-account/balances';
+            Log::info('EasylinkPaymentGateway - getAccountBalances - Making API request', [
+                'url' => $requestUrl,
+            ]);
+
             $response = Http::timeout(60)
                 ->withHeaders($this->headers($body))
-                ->post($this->baseUrl.'/finance-account/balances', $body);
+                ->post($requestUrl, $body);
 
-            Log::info('Easylink Account Balances Response', ['response' => $response]);
+            $responseStatus = $response->status();
+            $responseBody = $response->body();
+
+            Log::info('EasylinkPaymentGateway - getAccountBalances - Response received', [
+                'http_status' => $responseStatus,
+                'response_body' => $responseBody,
+            ]);
 
             $response->throw();
 
-            Log::info('Easylink Account Balances Response', ['response' => $response->body()]);
-
             $responseData = $response->object();
+
+            Log::info('EasylinkPaymentGateway - getAccountBalances - Response parsed', [
+                'response_code' => $responseData->code ?? null,
+                'has_data' => isset($responseData->data),
+            ]);
 
             if (($responseData->code ?? 1) !== 0) {
                 $errorMessage = $this->handleInternalErrorCode($responseData->code ?? 1);
+                Log::error('EasylinkPaymentGateway - getAccountBalances - Error response', [
+                    'response_code' => $responseData->code,
+                    'error_message' => $errorMessage,
+                ]);
                 throw new Exception($errorMessage);
             } elseif (isset($responseData->data)) {
+                Log::info('EasylinkPaymentGateway - getAccountBalances - Success');
                 return (object) $responseData->data;
             }
 
+            Log::info('EasylinkPaymentGateway - getAccountBalances - Success (fallback)');
             return (object) $responseData->data;
         } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - getAccountBalances - Exception', [
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
             throw new Exception($this->handleApiResponseError($e));
         }
     }
@@ -821,8 +1417,14 @@ class EasylinkPaymentGateway
      */
     public function validateWebHook(array $data): bool
     {
+        Log::info('EasylinkPaymentGateway - validateWebHook - Method started', [
+            'reference_id' => $data['reference_id'] ?? null,
+            'disbursement_id' => $data['disbursement_id'] ?? null,
+            'state' => $data['state'] ?? null,
+        ]);
+
         $this->getAccessToken();
-        $data = [
+        $validationData = [
             'disbursement_id' => $data['disbursement_id'],
             'reference_id' => $data['reference_id'],
             'remittance_type' => $data['remittance_type'],
@@ -838,21 +1440,51 @@ class EasylinkPaymentGateway
             'reason' => $data['reason'],
         ];
 
-        try {
-            $response = Http::timeout(60)->withHeaders($this->headers($data))
-                ->post($this->baseUrl, $data);
+        Log::debug('EasylinkPaymentGateway - validateWebHook - Validation data prepared', [
+            'data_keys' => array_keys($validationData),
+        ]);
 
-            Log::info('Easylink Webhook Validation Response', ['response' => $response->object()]);
+        try {
+            $requestUrl = $this->baseUrl;
+            Log::info('EasylinkPaymentGateway - validateWebHook - Making validation request', [
+                'url' => $requestUrl,
+                'reference_id' => $validationData['reference_id'] ?? null,
+            ]);
+
+            $response = Http::timeout(60)->withHeaders($this->headers($validationData))
+                ->post($requestUrl, $validationData);
+
+            $responseStatus = $response->status();
+            $responseData = $response->object();
+
+            Log::info('EasylinkPaymentGateway - validateWebHook - Response received', [
+                'http_status' => $responseStatus,
+                'response_status' => $response->status ?? null,
+                'full_response' => $responseData,
+            ]);
 
             if (isset($response->status) && $response->status === 'success') {
+                Log::info('EasylinkPaymentGateway - validateWebHook - Validation successful', [
+                    'reference_id' => $validationData['reference_id'] ?? null,
+                ]);
                 return true;
             }
 
+            Log::warning('EasylinkPaymentGateway - validateWebHook - Validation failed', [
+                'reference_id' => $validationData['reference_id'] ?? null,
+                'response_status' => $response->status ?? null,
+            ]);
+
             return false;
         } catch (Exception $e) {
+            Log::error('EasylinkPaymentGateway - validateWebHook - Exception', [
+                'reference_id' => $validationData['reference_id'] ?? null,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
             throw new Exception($this->handleApiResponseError($e));
         }
-
     }
 
     /**
@@ -864,11 +1496,22 @@ class EasylinkPaymentGateway
      */
     public function updateSettlementTransactionData(Transaction $transaction, array $settlementData): bool
     {
+        Log::info('EasylinkPaymentGateway - updateSettlementTransactionData - Method started', [
+            'transaction_id' => $transaction->trx_id,
+            'reference_id' => $settlementData['reference_id'] ?? null,
+            'disbursement_id' => $settlementData['disbursement_id'] ?? null,
+            'raw_state' => $settlementData['state'] ?? null,
+        ]);
+
         $data = array_merge($transaction->trx_data ?? [], [
             'easylink_settlement' => $settlementData ?? [],
         ]);
         $transaction->update([
             'trx_data' => $data,
+        ]);
+
+        Log::debug('EasylinkPaymentGateway - updateSettlementTransactionData - Transaction data updated', [
+            'transaction_id' => $transaction->trx_id,
         ]);
 
         $rawState = $settlementData['state'] ?? null;
@@ -880,16 +1523,40 @@ class EasylinkPaymentGateway
                 is_string($rawState) && is_numeric($rawState) => TransferState::fromStatusCode((int) $rawState),
                 default => null,
             };
+
+            Log::debug('EasylinkPaymentGateway - updateSettlementTransactionData - State enum resolved', [
+                'transaction_id' => $transaction->trx_id,
+                'raw_state' => $rawState,
+                'state_enum' => $stateEnum?->name ?? null,
+                'state_value' => $stateEnum?->value ?? null,
+            ]);
         } catch (ValueError $exception) {
             $stateEnum = null;
+            Log::warning('EasylinkPaymentGateway - updateSettlementTransactionData - ValueError resolving state', [
+                'transaction_id' => $transaction->trx_id,
+                'raw_state' => $rawState,
+                'error' => $exception->getMessage(),
+            ]);
         }
 
         if (! $stateEnum instanceof TransferState) {
+            Log::error('EasylinkPaymentGateway - updateSettlementTransactionData - Unknown transfer state', [
+                'transaction_id' => $transaction->trx_id,
+                'reference_id' => $settlementData['reference_id'] ?? null,
+                'raw_state' => var_export($settlementData['state'], true),
+                'state_type' => gettype($settlementData['state'] ?? null),
+            ]);
             throw new \Exception(
                 'Unknown Transfer State: '.var_export($settlementData['state'], true).
                 ' for Transaction ID: '.$settlementData['reference_id']
             );
         }
+
+        Log::info('EasylinkPaymentGateway - updateSettlementTransactionData - Processing state', [
+            'transaction_id' => $transaction->trx_id,
+            'state' => $stateEnum->name,
+            'state_value' => $stateEnum->value,
+        ]);
 
         /**
          * Map the internal TransferState (Easylink) to the external TrxStatus and remarks.
@@ -899,6 +1566,9 @@ class EasylinkPaymentGateway
         switch ($stateEnum) {
             case TransferState::CREATE: // 1
                 $remarks = 'Withdrawal request is created by Financial Institution';
+                Log::info('EasylinkPaymentGateway - updateSettlementTransactionData - State: CREATE', [
+                    'transaction_id' => $transaction->trx_id,
+                ]);
 
                 return app(TransactionService::class)->updateTransactionStatusWithRemarks(
                     transaction: $transaction,
@@ -965,6 +1635,10 @@ class EasylinkPaymentGateway
                 $remarks = 'Withdrawal request has been cancelled by Financial Institution';
                 $description = 'Withdrawal request has been cancelled by Bank Partner';
 
+                Log::info('EasylinkPaymentGateway - updateSettlementTransactionData - State: CANCELED', [
+                    'transaction_id' => $transaction->trx_id,
+                ]);
+
                 return app(TransactionService::class)->failTransaction(
                     trxId: $settlementData['reference_id'],
                     remarks: $remarks,
@@ -975,8 +1649,14 @@ class EasylinkPaymentGateway
                 $remarks = 'Withdrawal request is failed on Financial Institution: '.($settlementData['message'] ?? '');
                 $description = 'Withdrawal request is failed on Bank Partner: '.($settlementData['message'] ?? '');
 
-                return app(TransactionService::class)->failTransaction(
+                Log::error('EasylinkPaymentGateway - updateSettlementTransactionData - State: FAILED', [
+                    'transaction_id' => $transaction->trx_id,
+                    'message' => $settlementData['message'] ?? null,
+                ]);
+
+                return app(TransactionService::class)->refundTransaction(
                     trxId: $settlementData['reference_id'],
+                    referenceNumber: $settlementData['disbursement_id'],
                     remarks: $remarks,
                     description: $description
                 );
@@ -984,6 +1664,11 @@ class EasylinkPaymentGateway
             case TransferState::REFUND_SUCCESS: // 10
                 $remarks = 'Withdrawal request has been cancelled and refunded by Financial Institution';
                 $description = 'Withdrawal request has been cancelled and refunded by Bank Partner';
+
+                Log::info('EasylinkPaymentGateway - updateSettlementTransactionData - State: REFUND_SUCCESS', [
+                    'transaction_id' => $transaction->trx_id,
+                    'disbursement_id' => $settlementData['disbursement_id'] ?? null,
+                ]);
 
                 return app(TransactionService::class)->refundTransaction(
                     trxId: $settlementData['reference_id'],
@@ -1016,6 +1701,12 @@ class EasylinkPaymentGateway
 
                 $referenceNumber = $settlementData['disbursement_id'] ?? $settlementData['reference_id'];
 
+                Log::info('EasylinkPaymentGateway - updateSettlementTransactionData - State: COMPLETE/REMIND_RECIPIENT', [
+                    'transaction_id' => $transaction->trx_id,
+                    'is_reminder' => $isReminder,
+                    'reference_number' => $referenceNumber,
+                ]);
+
                 return app(TransactionService::class)->completeTransaction(
                     trxId: $settlementData['reference_id'],
                     referenceNumber: $referenceNumber,
@@ -1026,6 +1717,14 @@ class EasylinkPaymentGateway
             default:
                 $remarks = 'Withdrawal request is in '.$stateEnum->label().' state by Financial Institution';
                 $description = 'Withdrawal request is in '.$stateEnum->label().' state by Bank Partner';
+
+                Log::warning('EasylinkPaymentGateway - updateSettlementTransactionData - Unknown/default state', [
+                    'transaction_id' => $transaction->trx_id,
+                    'state' => $stateEnum->name,
+                    'state_value' => $stateEnum->value,
+                    'state_label' => $stateEnum->label(),
+                ]);
+
                 app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
 
                 return app(TransactionService::class)->updateTransactionStatusWithRemarks(
@@ -1050,18 +1749,47 @@ class EasylinkPaymentGateway
     public function handleDisbursment(Request $request): bool
     {
         $settlementData = $request->toArray();
-        Log::info('Easylink Response', $settlementData);
+        Log::info('EasylinkPaymentGateway - handleDisbursment - Method started', [
+            'reference_id' => $settlementData['reference_id'] ?? null,
+            'disbursement_id' => $settlementData['disbursement_id'] ?? null,
+            'state' => $settlementData['state'] ?? null,
+            'full_data' => $settlementData,
+        ]);
+
         // if (app()->inProduction()) {
         //     if (! $this->validateWebHook($settlementData)) {
-        //         Log::error('Easylink Webhook validation failed', $settlementData);
+        //         Log::error('EasylinkPaymentGateway - handleDisbursment - Webhook validation failed', [
+        //             'reference_id' => $settlementData['reference_id'] ?? null,
+        //             'settlement_data' => $settlementData,
+        //         ]);
         //         throw new NotifyErrorException('Easylink Webhook validation failed');
         //     }
         // }
-        if ($transaction = Transaction::where('trx_id', $request->reference_id)->first()) {
-            return $this->updateSettlementTransactionData($transaction, $settlementData);
+
+        $referenceId = $request->reference_id ?? null;
+        if (! $referenceId) {
+            Log::error('EasylinkPaymentGateway - handleDisbursment - Missing reference_id', [
+                'request_data' => $settlementData,
+            ]);
+            return false;
         }
 
-        return false;
+        $transaction = Transaction::where('trx_id', $referenceId)->first();
+
+        if (! $transaction) {
+            Log::warning('EasylinkPaymentGateway - handleDisbursment - Transaction not found', [
+                'reference_id' => $referenceId,
+            ]);
+            return false;
+        }
+
+        Log::info('EasylinkPaymentGateway - handleDisbursment - Transaction found', [
+            'reference_id' => $referenceId,
+            'transaction_id' => $transaction->id ?? null,
+            'current_status' => $transaction->status->value ?? null,
+        ]);
+
+        return $this->updateSettlementTransactionData($transaction, $settlementData);
     }
 
     /**
@@ -1075,54 +1803,105 @@ class EasylinkPaymentGateway
      */
     public function handleTopup(Request $request): bool
     {
-        Log::info('Easylink Topup Response', $request->toArray());
+        $requestData = $request->toArray();
+        Log::info('EasylinkPaymentGateway - handleTopup - Method started', [
+            'reference_id' => $requestData['reference_id'] ?? null,
+            'disbursement_id' => $requestData['disbursement_id'] ?? null,
+            'state' => $requestData['state'] ?? null,
+            'full_data' => $requestData,
+        ]);
 
-        if ($transaction = Transaction::where('trx_id', $request->reference_id)->first()) {
-            $data = array_merge($transaction->trx_data ?? [], [
-                'easylink_topup' => $request->toArray() ?? [],
+        $referenceId = $request->reference_id ?? null;
+        if (! $referenceId) {
+            Log::error('EasylinkPaymentGateway - handleTopup - Missing reference_id', [
+                'request_data' => $requestData,
             ]);
+            return false;
+        }
 
-            $transaction->update(['trx_data' => $data]);
+        $transaction = Transaction::where('trx_id', $referenceId)->first();
 
-            switch ((int) $request->state) {
-                case TransferState::COMPLETE->value:
-                    $remarks = 'Easylink Topup Completed';
-                    app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
-                    if ($transaction->status !== TrxStatus::COMPLETED) {
-                        return app(TransactionService::class)->completeTransaction(
-                            trxId: $request->reference_id,
-                            referenceNumber: $request->disbursement_id,
-                            remarks: $remarks,
-                        );
-                    }
+        if (! $transaction) {
+            Log::warning('EasylinkPaymentGateway - handleTopup - Transaction not found', [
+                'reference_id' => $referenceId,
+            ]);
+            return false;
+        }
 
-                    return true;
+        Log::info('EasylinkPaymentGateway - handleTopup - Transaction found', [
+            'reference_id' => $referenceId,
+            'transaction_id' => $transaction->id ?? null,
+            'current_status' => $transaction->status->value ?? null,
+            'state' => $request->state,
+        ]);
 
-                case TransferState::FAILED->value:
-                    $remarks = 'Easylink Topup Failed';
-                    $description = 'Easylink Topup Failed';
-                    app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
+        $data = array_merge($transaction->trx_data ?? [], [
+            'easylink_topup' => $requestData ?? [],
+        ]);
 
-                    return app(TransactionService::class)->failTransaction(
-                        trxId: $request->reference_id,
-                        remarks: $remarks,
-                        description: $description
-                    );
+        $transaction->update(['trx_data' => $data]);
+        Log::debug('EasylinkPaymentGateway - handleTopup - Transaction data updated', [
+            'reference_id' => $referenceId,
+        ]);
 
-                case TransferState::REFUND_SUCCESS->value:
-                    $remarks = 'Easylink Topup Refunded';
-                    $description = 'Easylink Topup Refunded';
+        $state = (int) $request->state;
+        Log::info('EasylinkPaymentGateway - handleTopup - Processing state', [
+            'reference_id' => $referenceId,
+            'state' => $state,
+            'state_name' => TransferState::tryFrom($state)?->name ?? 'UNKNOWN',
+        ]);
 
-                    return app(TransactionService::class)->refundTransaction(
+        switch ($state) {
+            case TransferState::COMPLETE->value:
+                $remarks = 'Easylink Topup Completed';
+                Log::info('EasylinkPaymentGateway - handleTopup - Topup completed', [
+                    'reference_id' => $referenceId,
+                ]);
+                app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
+                if ($transaction->status !== TrxStatus::COMPLETED) {
+                    return app(TransactionService::class)->completeTransaction(
                         trxId: $request->reference_id,
                         referenceNumber: $request->disbursement_id,
                         remarks: $remarks,
-                        description: $description
                     );
+                }
 
-            }
+                return true;
+
+            case TransferState::FAILED->value:
+                $remarks = 'Easylink Topup Failed';
+                $description = 'Easylink Topup Failed';
+                Log::error('EasylinkPaymentGateway - handleTopup - Topup failed', [
+                    'reference_id' => $referenceId,
+                ]);
+                app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
+
+                return app(TransactionService::class)->failTransaction(
+                    trxId: $request->reference_id,
+                    remarks: $remarks,
+                    description: $description
+                );
+
+            case TransferState::REFUND_SUCCESS->value:
+                $remarks = 'Easylink Topup Refunded';
+                $description = 'Easylink Topup Refunded';
+                Log::info('EasylinkPaymentGateway - handleTopup - Topup refunded', [
+                    'reference_id' => $referenceId,
+                ]);
+
+                return app(TransactionService::class)->refundTransaction(
+                    trxId: $request->reference_id,
+                    referenceNumber: $request->disbursement_id,
+                    remarks: $remarks,
+                    description: $description
+                );
+
+            default:
+                Log::warning('EasylinkPaymentGateway - handleTopup - Unknown state', [
+                    'reference_id' => $referenceId,
+                    'state' => $state,
+                ]);
+                return false;
         }
-
-        return false;
     }
 }

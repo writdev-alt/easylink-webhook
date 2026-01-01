@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Aggregator Store Daily Cache Model
- *
+ * 
  * Stores daily aggregated transaction statistics for aggregator stores.
  *
  * @property \Carbon\Carbon $date
@@ -16,7 +16,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $total_transactions_count
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
- *
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AggregatorStoreDailyCache newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AggregatorStoreDailyCache newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AggregatorStoreDailyCache query()
  * @mixin \Eloquent
  */
 class AggregatorStoreDailyCache extends Model

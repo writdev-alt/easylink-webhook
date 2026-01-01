@@ -6,20 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Daily Transaction Summary Model
- *
- * Stores daily aggregated transaction statistics for incoming and withdraw transactions.
- *
- * @property \Carbon\Carbon $date
+ * @property \Illuminate\Support\Carbon $date
  * @property int $user_id
- * @property float $total_incoming
+ * @property numeric $total_incoming
  * @property int $count_incoming
- * @property float $total_withdraw
+ * @property numeric $total_withdraw
  * @property int $count_withdraw
- * @property \Carbon\Carbon $created_at
- * @property \Carbon\Carbon $updated_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $user
- *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary query()
@@ -29,7 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary whereDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary whereTotalIncoming($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary whereTotalWithdraw($value)
- *
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DailyTransactionSummary whereUserId($value)
  * @mixin \Eloquent
  */
 class DailyTransactionSummary extends Model

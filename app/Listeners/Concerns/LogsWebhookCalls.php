@@ -115,7 +115,7 @@ trait LogsWebhookCalls
 
         return [
             'trx_id' => $payload['data']['trx_id'] ?? '',
-            'webhook_name' => $transaction->trx_type->value.'|'.$transaction->status->value,
+            'webhook_name' => $transaction->trx_type->value.'.'.$transaction->status->value,
             'webhook_url' => $event->webhookUrl ?? '',
             'event_type' => $payload['event'] ?? 'webhook',
             'attempt' => $event->attempt ?? 1,

@@ -5,6 +5,49 @@ namespace App\Models;
 use App\Constants\CurrencyRole;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property int|null $deleted_by
+ * @property int $currency_id
+ * @property int $user_id
+ * @property string $uuid
+ * @property float $balance
+ * @property float $hold_balance
+ * @property float $balance_sandbox
+ * @property float $hold_balance_sandbox
+ * @property bool $status
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string|null $deleted_at
+ * @property-read bool $is_payment
+ * @property-read bool $is_receiver
+ * @property-read bool $is_request_money
+ * @property-read bool $is_sender
+ * @property-read bool $is_withdraw
+ * @property-read mixed $latest_transaction
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereBalance($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereBalanceSandbox($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereCurrencyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereDeletedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereHoldBalance($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereHoldBalanceSandbox($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Wallet whereUuid($value)
+ * @mixin \Eloquent
+ */
 class Wallet extends Model
 {
     /**

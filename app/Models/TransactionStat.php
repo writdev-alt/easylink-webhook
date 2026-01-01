@@ -5,8 +5,35 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo; // For UUIDs
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Wrpay\Core\Models\Merchant;
 
+// For UUIDs
+
+/**
+ * @property int $id
+ * @property string $model_type
+ * @property int $model_id
+ * @property int $total_transactions
+ * @property int $total_amount
+ * @property string $type
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Model|\Eloquent $model
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereModelId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereModelType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereTotalAmount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereTotalTransactions($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TransactionStat whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
 class TransactionStat extends Model
 {
     use HasUuids;
@@ -44,7 +71,8 @@ class TransactionStat extends Model
 
     public function merchant(): BelongsTo
     {
-        return $this->belongsTo(Merchant::class, 'model_id')->where('model_type', Merchant::class);
+        return $this->belongsTo(config('wrpay-core.models.merchant', Merchant::class), 'model_id')
+            ->where('model_type', config('wrpay-core.models.merchant', Merchant::class),);
     }
 
     public function user(): BelongsTo
