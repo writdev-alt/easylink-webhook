@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('rank_id')->nullable()->index()->comment('References the ID in the ranks table');
             $table->string('referral_code')->unique()->nullable();
             $table->string('avatar')->nullable();
             $table->string('first_name')->nullable();

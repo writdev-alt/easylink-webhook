@@ -32,21 +32,9 @@ class NetzmePaymentGateway implements PaymentGateway
         if ($transaction = Transaction::where('trx_id', $request->originalPartnerReferenceNo)
             ->whereIn('trx_type', [TrxType::RECEIVE_PAYMENT, TrxType::DEPOSIT])
             ->first()) {
-            $data = array_merge($transaction->trx_data ?? [], [
-                'netzme_ipn_response' => $request->toArray() ?? [],
-            ]);
-
-            $transaction->update(['trx_data' => $data]);
-            $transaction->save();
-            $transaction->refresh();
+            
             // If success, complete and send second webhook using same instance
             if ($request->transactionStatusDesc === 'Success' && $request->latestTransactionStatus === '00') {
-
-                $existingData = $transaction->trx_data ?? [];
-                $data = array_merge($existingData, [
-                    'netzme_ipn_response' => $request->toArray() ?? [],
-                ]);
-                $transaction->update(['trx_data' => $data]);
 
                 Log::info('Netzme transaction IPN hit', [
                     'trx_id' => $transaction->trx_id,
@@ -56,6 +44,7 @@ class NetzmePaymentGateway implements PaymentGateway
 
                 if ($transaction->status !== TrxStatus::COMPLETED) {
                     $rrn = $request->additionalInfo['rrn'];
+                    $paidAt = $request->additionalInfo['paymentTime'];
                     $description = $transaction->trx_type === TrxType::DEPOSIT
                         ? 'Deposit completed via QRIS IPN'
                         : 'Receive Payment completed via QRIS IPN';
@@ -74,12 +63,6 @@ class NetzmePaymentGateway implements PaymentGateway
             }
 
             // For non-success statuses, dispatch was done; update tracking and return
-            $existingData = $transaction->trx_data ?? [];
-            $data = array_merge($existingData, [
-                'netzme_ipn_response' => $request->toArray() ?? [],
-            ]);
-            $transaction->update(['trx_data' => $data]);
-
             Log::info('Netzme transaction IPN hit (non-success)', [
                 'trx_id' => $transaction->trx_id,
                 'transaction_status' => $request->transactionStatusDesc ?? null,
