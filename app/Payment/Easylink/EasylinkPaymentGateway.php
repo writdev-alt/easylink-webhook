@@ -25,6 +25,7 @@ use Wrpay\Core\Enums\TrxStatus;
 use Wrpay\Core\Models\Transaction;
 use Wrpay\Core\Services\TransactionService;
 use Wrpay\Core\Services\WebhookService;
+use App\Services\Handlers\WithdrawHandler;
 
 /**
  * Service class for interacting with the Bank Partner API.
@@ -1706,6 +1707,8 @@ class EasylinkPaymentGateway
                     'is_reminder' => $isReminder,
                     'reference_number' => $referenceNumber,
                 ]);
+
+                app(WithdrawHandler::class)->handleSuccess($transaction);
 
                 return app(TransactionService::class)->completeTransaction(
                     trxId: $settlementData['reference_id'],
