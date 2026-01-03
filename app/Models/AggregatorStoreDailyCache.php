@@ -30,6 +30,8 @@ class AggregatorStoreDailyCache extends Model
      */
     protected $table = 'aggregator_store_daily_cache';
 
+    protected $connection;
+
     /**
      * The primary key for the model.
      *
@@ -71,6 +73,18 @@ class AggregatorStoreDailyCache extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+
+        $this->setConnection($this->resolveConfiguredConnection());
+    }
+
+    protected function resolveConfiguredConnection(): string
+    {
+        return (string) config('database.webhook_calls_connection', 'mysql_site');
+    }
 
     /**
      * Support composite keys when saving/updating (e.g., updateOrCreate).
