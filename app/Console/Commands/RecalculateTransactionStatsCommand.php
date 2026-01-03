@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Enums\TrxStatus;
-use App\Enums\TrxType;
-use App\Models\Merchant;
-use App\Models\Transaction;
+use Wrpay\Core\Models\Transaction;
 use App\Models\TransactionStat;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Wrpay\Core\Enums\TrxStatus;
+use Wrpay\Core\Enums\TrxType;
 
 class RecalculateTransactionStatsCommand extends Command
 {
@@ -88,11 +88,12 @@ class RecalculateTransactionStatsCommand extends Command
 
                             // Add transaction type row with payable_amount
                             $insertRows[] = [
+                                'id' => (string) Str::uuid(),
                                 'model_id' => (int) $row->model_id,
                                 'model_type' => $dimension['model'],
                                 'type' => $trxType->value,
-                                'total_transactions' => (int) $row->total_transactions,
-                                'total_amount' => (int) $row->total_net_amount,
+                                'total_transactions' => (float) $row->total_transactions,
+                                'total_amount' => (float) $row->total_net_amount,
                                 'created_at' => $now,
                                 'updated_at' => $now,
                             ];
@@ -115,19 +116,20 @@ class RecalculateTransactionStatsCommand extends Command
 
                         foreach ($chunk as $row) {
                             $feeTypes = [
-                                'mdr_fee' => (int) $row->total_mdr_fee,
-                                'admin_fee' => (int) $row->total_admin_fee,
-                                'agent_fee' => (int) $row->total_agent_fee,
-                                'cashback_fee' => (int) $row->total_cashback_fee,
+                                'mdr_fee' => (float) $row->total_mdr_fee,
+                                'admin_fee' => (float) $row->total_admin_fee,
+                                'agent_fee' => (float) $row->total_agent_fee,
+                                'cashback_fee' => (float) $row->total_cashback_fee,
                             ];
 
                             foreach ($feeTypes as $feeType => $feeAmount) {
                                 if ($feeAmount > 0) {
                                     $insertRows[] = [
-                                        'model_id' => (int) $row->model_id,
+                                        'id' => (string) Str::uuid(),
+                                        'model_id' => (float) $row->model_id,
                                         'model_type' => $dimension['model'],
                                         'type' => $feeType,
-                                        'total_transactions' => (int) $row->total_transactions,
+                                        'total_transactions' => (float) $row->total_transactions,
                                         'total_amount' => $feeAmount,
                                         'created_at' => $now,
                                         'updated_at' => $now,
@@ -163,11 +165,6 @@ class RecalculateTransactionStatsCommand extends Command
     protected function statDimensions(): array
     {
         return [
-            [
-                'column' => 'merchant_id',
-                'model' => Merchant::class,
-                'label' => 'Merchant',
-            ],
             [
                 'column' => 'user_id',
                 'model' => User::class,
