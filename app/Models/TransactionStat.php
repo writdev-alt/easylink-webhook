@@ -11,7 +11,7 @@ use Wrpay\Core\Models\Merchant;
 // For UUIDs
 
 /**
- * @property int $id
+ * @property string $id
  * @property string $model_type
  * @property int $model_id
  * @property int $total_transactions
@@ -63,6 +63,18 @@ class TransactionStat extends Model
         'total_transactions' => 'int',
         'total_amount' => 'int',
     ];
+
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+
+        $this->setConnection($this->resolveConfiguredConnection());
+    }
+
+    protected function resolveConfiguredConnection(): string
+    {
+        return (string) config('database.webhook_calls_connection', 'mysql_site');
+    }
 
     public function model(): MorphTo
     {
