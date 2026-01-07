@@ -6,6 +6,7 @@ use App\Jobs\UpdateAggregatorStoreDailyCacheJob;
 use App\Jobs\UpdateTransactionStatJob;
 use App\Services\Handlers\Interfaces\FailHandlerInterface;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Str;
 use Wrpay\Core\Models\Transaction;
 use Wrpay\Core\Services\WalletService;
 use Wrpay\Core\Services\WebhookService;
@@ -24,6 +25,11 @@ class WithdrawHandler implements FailHandlerInterface
             new UpdateTransactionStatJob($transaction),
             new UpdateAggregatorStoreDailyCacheJob($transaction),
         ])->dispatch();
+
+        if ($transaction->uuid === null) {
+            $transaction->uuid = Str::uuid()->toString();
+            $transaction->saveQuietly();
+        }
 
         return true;
     }
