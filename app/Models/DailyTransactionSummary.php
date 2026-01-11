@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 /**
  * @property \Illuminate\Support\Carbon $date
  * @property int $user_id
@@ -30,7 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DailyTransactionSummary extends Model
 {
-    protected $connection;
+    use HasUuids;
 
     /**
      * The table associated with the model.
@@ -39,12 +39,26 @@ class DailyTransactionSummary extends Model
      */
     protected $table = 'daily_transaction_summary';
 
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+
+        $this->setConnection($this->resolveConfiguredConnection());
+    }
+
+    protected function resolveConfiguredConnection(): string
+    {
+        return (string) config('database.webhook_calls_connection', 'mysql_site');
+    }
+
     /**
      * The primary key for the model.
      *
      * @var array<int, string>
      */
-    protected $primaryKey = ['date', 'user_id'];
+    protected $primaryKey = 'uuid';
+
+    protected $keyType = 'string';
 
     /**
      * Indicates if the IDs are auto-incrementing.

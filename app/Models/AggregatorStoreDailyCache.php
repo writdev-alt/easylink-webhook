@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 /**
  * Aggregator Store Daily Cache Model
  * 
@@ -23,6 +23,14 @@ use Illuminate\Database\Eloquent\Model;
  */
 class AggregatorStoreDailyCache extends Model
 {
+    use HasUuids;
+
+    
+    protected $primaryKey = 'uuid';
+
+    protected $keyType = 'string';
+
+    protected $connection;
     /**
      * The table associated with the model.
      *
@@ -30,14 +38,6 @@ class AggregatorStoreDailyCache extends Model
      */
     protected $table = 'aggregator_store_daily_cache';
 
-    protected $connection;
-
-    /**
-     * The primary key for the model.
-     *
-     * @var array<int, string>
-     */
-    protected $primaryKey = ['date', 'merchant_id'];
 
     /**
      * Indicates if the IDs are auto-incrementing.

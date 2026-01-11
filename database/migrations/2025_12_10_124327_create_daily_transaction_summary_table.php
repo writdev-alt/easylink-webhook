@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection(config('database.webhook_calls_connection', 'mysql_site'))->create('daily_transaction_summary', function (Blueprint $table) {
+            $table->uuid('uuid')->primary();
             $table->date('date');
             $table->unsignedBigInteger('user_id');
             $table->decimal('total_incoming', 20, 2)->default(0);
@@ -20,7 +21,6 @@ return new class extends Migration
             $table->bigInteger('count_withdraw')->default(0);
             $table->timestamps();
 
-            $table->primary(['date', 'user_id']);
             $table->index('user_id');
         });
     }

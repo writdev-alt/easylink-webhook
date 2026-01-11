@@ -150,7 +150,44 @@ trait LogsWebhookCalls
             return null;
         }
 
-        return (string) $event->response->getBody();
+        try {
+            $body = $event->response->getBody();
+
+            if (! $body || ! method_exists($body, 'isReadable')) {
+                return null;
+            }
+
+            // Check if stream is readable
+            if (! $body->isReadable()) {
+                return null;
+            }
+
+            // If stream is seekable, rewind it to read from the beginning
+            if (method_exists($body, 'isSeekable') && $body->isSeekable()) {
+                try {
+                    $body->rewind();
+                } catch (\Throwable $e) {
+                    // If rewind fails, the stream might be closed, return null
+                    return null;
+                }
+            }
+
+            // Use getContents() instead of __toString() to avoid fseek() issues
+            if (method_exists($body, 'getContents')) {
+                return $body->getContents();
+            }
+
+            // Fallback to string conversion if getContents() is not available
+            return (string) $body;
+        } catch (\Throwable $e) {
+            // Log the error but don't throw, return null instead
+            Log::warning('Failed to read response body', [
+                'error' => $e->getMessage(),
+                'class' => get_class($e),
+            ]);
+
+            return null;
+        }
     }
 
     /**
