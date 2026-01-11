@@ -3,11 +3,20 @@
 namespace App\Listeners;
 
 use App\Listeners\Concerns\LogsWebhookCalls;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
 use Spatie\WebhookServer\Events\WebhookCallEvent;
 
-class LogWebhookCallFailedListener
+class LogWebhookCallFailedListener implements ShouldQueue
 {
-    use LogsWebhookCalls;
+    use InteractsWithQueue, LogsWebhookCalls;
+
+    /**
+     * The name of the queue the job should be sent to.
+     *
+     * @var string|null
+     */
+    public $queue = 'webhook-logs';
 
     /**
      * Check if this event should be processed.

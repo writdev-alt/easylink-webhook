@@ -13,6 +13,13 @@ class LogHttpResponse implements ShouldQueue
     use InteractsWithQueue;
 
     /**
+     * The name of the queue the job should be sent to.
+     *
+     * @var string|null
+     */
+    public $queue = 'webhook-logs';
+
+    /**
      * Create the event listener.
      */
     public function __construct() {}

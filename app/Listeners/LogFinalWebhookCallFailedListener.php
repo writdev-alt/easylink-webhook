@@ -3,10 +3,19 @@
 namespace App\Listeners;
 
 use App\Listeners\Concerns\LogsWebhookCalls;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
 
-class LogFinalWebhookCallFailedListener
+class LogFinalWebhookCallFailedListener implements ShouldQueue
 {
-    use LogsWebhookCalls;
+    use InteractsWithQueue, LogsWebhookCalls;
+
+    /**
+     * The name of the queue the job should be sent to.
+     *
+     * @var string|null
+     */
+    public $queue = 'webhook-logs';
 
     /**
      * Get the log level for the webhook event.
