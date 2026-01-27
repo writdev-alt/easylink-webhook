@@ -33,25 +33,9 @@ class StoreWebhookPayloadJob implements ShouldQueue
                 'headers' => $this->requestHeaders,
                 'http_verb' => $this->requestMethod,
                 'trx_id' => $this->trxId,
+                'payload' => $this->payload,
             ]);
-
-            // Save payload to storage using model method
-            $saved = $webhookCall->savePayload($this->payload);
-
-            if ($saved) {
-                Log::info('Webhook payload saved successfully', [
-                    'gateway' => $this->gateway,
-                    'trx_id' => $this->trxId,
-                    'webhook_call_id' => $webhookCall->id,
-                    'path' => $webhookCall->path,
-                ]);
-            } else {
-                Log::warning('Webhook payload save returned false', [
-                    'gateway' => $this->gateway,
-                    'trx_id' => $this->trxId,
-                    'webhook_call_id' => $webhookCall->id,
-                ]);
-            }
+                    
         } catch (\Exception $e) {
             Log::error('Exception while storing webhook payload', [
                 'gateway' => $this->gateway,

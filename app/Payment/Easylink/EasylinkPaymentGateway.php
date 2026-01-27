@@ -1655,12 +1655,18 @@ class EasylinkPaymentGateway
                     'message' => $settlementData['message'] ?? null,
                 ]);
 
-                return app(TransactionService::class)->refundTransaction(
+                $result = app(TransactionService::class)->refundTransaction(
                     trxId: $settlementData['reference_id'],
                     referenceNumber: $settlementData['disbursement_id'],
                     remarks: $remarks,
                     description: $description
                 );
+
+                if ($result) {
+                    // $transaction->refresh();
+                    app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
+                }
+                return $result;
 
             case TransferState::REFUND_SUCCESS: // 10
                 $remarks = 'Withdrawal request has been cancelled and refunded by Financial Institution';
@@ -1671,13 +1677,17 @@ class EasylinkPaymentGateway
                     'disbursement_id' => $settlementData['disbursement_id'] ?? null,
                 ]);
 
-                return app(TransactionService::class)->refundTransaction(
+                $result = app(TransactionService::class)->refundTransaction(
                     trxId: $settlementData['reference_id'],
                     referenceNumber: $settlementData['disbursement_id'],
                     remarks: $remarks,
                     description: $description
                 );
-
+                // if ($result) {
+                //     // $transaction->refresh();
+                //     app(WebhookService::class)->sendWithdrawalWebhook($transaction, $remarks);
+                // }
+                return $result;
             case TransferState::PROCESSING_BANK_PARTNER: // 26
                 $remarks = 'Withdrawal request is processing by Financial Institution Bank Partner';
                 $description = 'Withdrawal request is processing by Bank Partner';
